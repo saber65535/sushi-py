@@ -1,0 +1,13 @@
+Sushi_Python_Version
+
+Port of Sushi (Phanstiel et al., 2015) R/Bioconductor package to Python.
+
+Copyright (C) 2026  Qianli
+
+Sushi R is Copyright (C) 2015 Douglas H Phanstiel and released under
+GPL (>= 2).  This Python port is a derivative work and is therefore
+also released under the terms of the GNU General Public License
+version 2 or (at your option) any later version.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.

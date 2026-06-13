@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Build
+build/
+dist/
+
+# Output scratch
+output/
+
+# Vignette generated PNGs (regenerable from vignette.py)
+sushi/vignette_output/
+
+# OS
+.DS_Store
+Thumbs.db

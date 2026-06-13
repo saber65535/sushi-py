@@ -1,0 +1,116 @@
+# Changelog
+
+## [0.1.0] - 2026-06-13
+
+First release of Sushi Python Version.
+
+### Ported from R Sushi 1.32.0
+
+| R function | Python equivalent | Status |
+| --- | --- | --- |
+| `plotBedgraph` | `sushi.plotBedgraph` | ✅ (gradient, overlay, flip) |
+| `plotBed` | `sushi.plotBed` | ✅ (region / circles / density / splitstrand) |
+| `plotBedpe` | `sushi.plotBedpe` | ✅ (loops / ribbons / lines) |
+| `plotHic` | `sushi.plotHic` | ✅ (auto-pads lower-triangular R storage) |
+| `plotGenes` | `sushi.plotGenes` | ✅ (box / arrow, colorby FPKM) |
+| `plotManhattan` | `sushi.plotManhattan` | ✅ (single + multi-chrom) |
+| `labelgenome` | `sushi.labelgenome` | ✅ (single + multi-chrom) |
+| `addlegend` | `sushi.addlegend` | ✅ |
+| `zoombox` | `sushi.zoombox` | ✅ |
+| `zoomsregion` | `sushi.zoomsregion` | ✅ |
+| `labelplot` | `sushi.labelplot` | ✅ |
+| `SushiColors` | `sushi.SushiColors` | ✅ (palettes 2..7) |
+| `maptocolors` | `sushi.maptocolors` | ✅ |
+| `maptolwd` | `sushi.maptolwd` | ✅ |
+| `opaque` | `sushi.opaque` | ✅ (9-char RGBA hex) |
+| `convertstrandinfo` | `sushi.convertstrandinfo` | ✅ |
+| `sortChrom` | `sushi.sortChrom` | ✅ |
+| `chromOffsets` | `sushi.chromOffsets` | ✅ |
+
+### 14 example datasets ported
+
+All 14 datasets from `Sushi/data/` were converted from `.rda` (R binary)
+to `.csv` via the `rdata` Python library:
+
+| Dataset | Rows | Format |
+| --- | --- | --- |
+| `Sushi_DNaseI.bedgraph` | 5,714 | CSV (chrom, start, end, value) |
+| `Sushi_ChIPSeq_CTCF.bedgraph` | 27,576 | CSV |
+| `Sushi_ChIPExo_CTCF.bedgraph` | 6,292 | CSV |
+| `Sushi_ChIPSeq_pol2.bedgraph` | 7,528 | CSV |
+| `Sushi_ChIPSeq_pol2.bed` | 208 | CSV (BED6) |
+| `Sushi_ChIPSeq_severalfactors.bed` | 130 | CSV (BED7) |
+| `Sushi_RNASeq_K562.bedgraph` | 1,073 | CSV |
+| `Sushi_5C.bedpe` | 4,787 | CSV (BEDPE11) |
+| `Sushi_ChIAPET_pol2.bedpe` | 48,634 | CSV (BEDPE10) |
+| `Sushi_HiC.matrix` | 114×113 | CSV (row labels in col 0) |
+| `Sushi_GWAS.bed` | 32,760 | CSV |
+| `Sushi_genes.bed` | 5 | CSV |
+| `Sushi_transcripts.bed` | 143 | CSV |
+| `Sushi_hg18_genome` | 22 | CSV (chrom, size) |
+
+### Vignette: 15/15 examples pass
+
+`python sushi/vignette.py` reproduces all 15 examples from the R
+package''s `inst/doc/Sushi.Rnw` and saves 15 PNG figures to
+`sushi/vignette_output/`.
+
+### Signature differences from R
+
+| Concept | R | Python |
+| --- | --- | --- |
+| Plot context | `par(mfrow=c(2,1)); plotBed(...)` | `fig, axes = plt.subplots(2, 1); plotBed(ax, ...)` |
+| Save to file | `png("out.png"); ...; dev.off()` | `fig.savefig("out.png")` |
+| Layout | `layout(matrix(c(1,1,2,3), 2, 2))` | `fig.add_gridspec(...)` + `fig.add_subplot(...)` |
+| Reserved-word rename | `addlegend(range, ...)` | `addlegend(ax, range_val=..., ...)` |
+| Default color | `dodgerblue4` | `navy` (matplotlib doesn''t know `dodgerblue4`) |
+| Default color (2) | `dodgerblue2` | `dodgerblue` |
+| `par(mgp=c(3,.3,0))` | `fig.subplots_adjust(left=..., bottom=...)` (caller) |
+| `NA` (R missing) | None (Python) |
+
+### Known limitations vs R Sushi
+
+1. **Multi-panel layout**: R uses `par(mfrow=...)` and `layout(matrix(...))` to
+   lay out multi-panel figures on a single `plot()` device. Python replaces
+   this with `matplotlib.gridspec.GridSpec` and `fig.add_subplot(...)`,
+   which is slightly more verbose but gives the caller full control.
+
+2. **3D perspective in `zoombox`**: the R package has no 3D `zoombox`
+   either; this port covers only the 2D version.
+
+3. **`opaque()` returns 9-character RGBA hex**: matplotlib parses `#RRGGBBAA`
+   correctly, but you must NOT call `to_hex(..., keep_alpha=False)` on the
+   result (which would drop the alpha channel).
+
+4. **Hi-C rectangular storage**: R stores `Sushi_HiC.matrix` as a
+   `114 × 113` lower-triangular object. The Python loader returns the matrix
+   as-is; the caller must pad it to a `114 × 114` square before calling
+   `plotHic` (see QUICKSTART §4 for an example).
+
+5. **`biomaRt` gene fetch**: not ported. The R vignette uses it to fetch
+   gene coordinates from Ensembl; this Python version assumes you have
+   your gene table already in a BED-like DataFrame.
+
+6. **`pdf()` / `png()` device drivers**: use `matplotlib.pyplot.savefig`
+   instead. Supports PNG, PDF, SVG, EPS, etc.
+
+### Tested on
+
+- Python 3.10.12 (师大服务器 `miniforge3`)
+- matplotlib 3.10.8
+- numpy 1.26.4
+- pandas 2.2.1
+- pyBigWig 0.3.25 (not used by Sushi but available)
+- scipy 1.15.3
+
+### Citation
+
+If you use this Python port, please cite the original R paper:
+
+> Phanstiel DH, Boyle AP, Araya CL, Snyder MP. **Sushi.r: flexible,
+> quantitative, and integrative genomic visualizations for
+> publication-quality multi-panel figures.** *Bioinformatics* (2015).
+
+This Python port does not introduce a new citation; it is faithful to the
+algorithms and parameters of the original R package (Bioconductor
+`Sushi 1.32.0`, GPL ≥ 2 license).

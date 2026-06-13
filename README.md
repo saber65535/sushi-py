@@ -140,4 +140,3 @@ Sushi_Python_Version/
 Ported from [Sushi 1.32.0](https://github.com/PhanstielLab/Sushi) by Douglas H Phanstiel et al., GPL (>= 2).
 Original paper: *Sushi.r: flexible, quantitative, and integrative genomic visualizations for publication-quality multi-panel figures*, Bioinformatics (2015).
 
-This port was developed in June 2026 by Qianli on the 师大服务器 (`10.68.162.201`).

@@ -94,6 +94,44 @@ package''s `inst/doc/Sushi.Rnw` and saves 15 PNG figures to
 6. **`pdf()` / `png()` device drivers**: use `matplotlib.pyplot.savefig`
    instead. Supports PNG, PDF, SVG, EPS, etc.
 
+### Fixed in v0.1.1 (2026-06-14)
+
+**Critical bug fix in `plotBedgraph`** (caught by user on `44_PolII/sushi_6candidate_v1.png`):
+
+The original polygon construction `np.concatenate([starts, stops_reversed])` +
+`np.concatenate([values, values_reversed])` drew a single Z-folded polygon with a
+long diagonal from the last bin's top to the first bin's top. For bedGraphs
+with more than ~3 bins of distinct values, this filled the **entire panel** with
+the wrong shape instead of correctly filling each bin as a horizontal step.
+
+**Fix**: new helper `_bedgraph_step_polygon` in `sushi/_helpers.py` builds a true
+step-function polygon (each bin is a horizontal rectangle). `plotBedgraph`
+now calls this helper. **Do not revert to the old `np.concatenate` form** without
+understanding the geometry — see the docstring on `_bedgraph_step_polygon` and
+the implementation note added to `plotBedgraph` itself.
+
+Verified against user's `sushi_6candidate.py` (6 candidate genes × 4 NET-seq
+tracks): previously each panel showed one giant triangle, now each panel
+shows the correct per-bin step-function NET-seq profile.
+
+### Known limitations vs R Sushi
+
+1. **`biomaRt` gene fetch** (used in R vignette examples 33-35) is **not ported**.
+   Reason: `biomaRt` is an R-specific Bioconductor binding to the Ensembl
+   BioMart Web service. Use any Python tool (UCSC Table Browser, `gget`,
+   `pybiomart`, direct REST) to fetch gene tables and pass them to
+   `sushi.plotGenes`.
+
+2. **R's `pdf()` / `png()` device drivers** are **not ported**. Use
+   `matplotlib.pyplot.savefig` directly — supports PNG/PDF/SVG/EPS/JPG out
+   of the box.
+
+(There are no other R-side features that sushi-py is missing. Earlier
+drafts of this list mentioned `plotBedpe method="interaction3D"` and a
+3D `zoombox`, but those were CHANGELOG mistakes — R Sushi 1.32.0 has only
+`plottype="loops"|"ribbons"|"lines"` and only a 2D `zoombox`. The Python port
+covers R Sushi 1.32.0's full public API.)
+
 ### Tested on
 
 - Python 3.10.12 (师大服务器 `miniforge3`)

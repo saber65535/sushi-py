@@ -641,7 +641,7 @@ def plotBedpe(ax, bedpedata, chrom: str, chromstart: int, chromend: int,
                                         x1 - x0, 2 * h_signed,
                                         facecolor=col, edgecolor=col, linewidth=lwdi))
             ax.plot([df["stop1"].iloc[i], df["start2"].iloc[i]],
-                    [line, line], color=col, linewidth=lwdi, solid_capstyle="butt")
+                    [line, line], color=col, marker="", linewidth=lwdi, solid_capstyle="butt")
         return ax
 
     if plottype in ("loops", "ribbons"):

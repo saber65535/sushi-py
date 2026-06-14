@@ -127,10 +127,17 @@ except Exception as ex:
 
 # === Panel E: DNaseI ===
 try:
+    # R Panel E: 2 zoomsregion (zoomregion1=1860000-1861000, zoomregion2=2281000-2282400)
+    # + zoombox passthrough (shared with other panels) + Read Depth y axis
     fig, ax = plt.subplots(figsize=(5, 3))
-    fig.subplots_adjust(bottom=0.22, top=0.90)
+    fig.subplots_adjust(bottom=0.22, right=0.78, top=0.88)
     plotBedgraph(ax, dnase, "chr11", 1650000, 2350000, colorbycol=SushiColors(5))
     labelgenome(ax, "chr11", 1650000, 2350000, n=4, scale="Mb")
+    # Add 2 zoomsregion markers (matching R)
+    zoomsregion(ax, region=(1860000, 1861000), chrom="chr11",
+                extend=(-0.8, 0.18), wideextend=0.10, offsets=(0, 0.577))
+    zoomsregion(ax, region=(2281000, 2282400), chrom="chr11",
+                extend=(0.01, 0.18), wideextend=0.10, offsets=(0.577, 0))
     ax.set_ylabel("Read Depth", fontsize=10, fontweight="bold")
     panel(ax, "E", "DnaseI")
     save(fig, "E_dnaseI")
@@ -160,9 +167,11 @@ except Exception as ex:
 try:
     fig, ax = plt.subplots(figsize=(4, 3))
     fig.subplots_adjust(bottom=0.22, top=0.90)
+    # R uses wiggle=0.001 + height=0.25 + splitstrand=FALSE (default for non-supplied row)
+    # but type="region" with default row="auto" does split-strand internally.
     plotBed(ax, pol2_bed, "chr11", 2281000, 2282404, type="region",
             colorby=pol2_bed["strand"].tolist(), colorbycol=SushiColors(2),
-            wiggle=0.001, height=0.25)
+            wiggle=0.001, height=0.25, maxrows=10000)
     labelgenome(ax, "chr11", 2281000, 2282404, n=2, scale="Mb")
     ax.legend(handles=[mpatches.Patch(color=SushiColors(2)(2)[0], label="reverse"),
                         mpatches.Patch(color=SushiColors(2)(2)[1], label="forward")],
@@ -208,17 +217,22 @@ except Exception as ex:
 
 # === Panel I: Gene density ===
 try:
+    # R Panel I: biomaRt gene density (genes across chr15 60-80Mb).
+    # Since biomaRt unavailable, synthesize a realistic gene set:
+    # ~1500 genes of various sizes scattered across 20Mb.
+    # This produces a colorful density track (R-style).
     fig, ax = plt.subplots(figsize=(4, 3))
-    fig.subplots_adjust(bottom=0.22, top=0.90)
-    # R Panel I uses biomaRt (not in Sushi). Synthesize 800 random gene BED
-    # features across chr15 60-80Mb to mimic gene density track.
+    fig.subplots_adjust(bottom=0.22, top=0.88)
     cs, ce = 60000000, 80000000
     np.random.seed(42)
-    gene_starts = np.random.randint(cs, ce - 200, size=800)
+    n_genes = 1500
+    gene_sizes = np.random.choice([500, 1500, 3000, 8000, 15000, 30000, 60000], size=n_genes, p=[.25, .25, .2, .15, .1, .03, .02])
+    gene_starts = np.random.randint(cs, ce - gene_sizes, size=n_genes)
+    gene_ends = gene_starts + gene_sizes
     df_genes = pd.DataFrame({
-        "chrom": "chr15", "start": gene_starts, "end": gene_starts + 200,
-        "name": [f"g_{i}" for i in range(800)],
-        "score": 1.0, "strand": "+",
+        "chrom": "chr15", "start": gene_starts, "end": gene_ends,
+        "name": [f"g_{i}" for i in range(n_genes)],
+        "score": 1.0, "strand": np.random.choice(["+", "-"], size=n_genes),
     })
     plotBed(ax, df_genes, "chr15", cs, ce, type="density",
             palettes=SushiColors(7), color="dodgerblue", colorby=None,

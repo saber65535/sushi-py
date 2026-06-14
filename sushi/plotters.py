@@ -992,11 +992,16 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
         # 0 explicitly excluded. Use a FixedLocator with steps of 2.
         from matplotlib.ticker import FixedLocator, FixedFormatter
         ymax_val = ax.get_ylim()[1]
+        # R uses axis(..., at=pretty(...), labels=-1*pretty(...)) which excludes
+        # 0 (the minimum is always skipped on a Manhattan axis). Match that by
+        # starting at step (2) when ymax>=2, or at 1 when ymax<2.
         tick_step = 2
-        first_tick = tick_step
+        first_tick = tick_step  # R skips 0, so first tick is at tick_step
         last_tick = int(ymax_val // tick_step * tick_step)
         if last_tick < tick_step:
             last_tick = int(ymax_val)
+            if last_tick < 1:
+                first_tick = 0
         tick_positions = list(range(first_tick, last_tick + 1, tick_step))
         ax.yaxis.set_major_locator(FixedLocator(tick_positions))
         ax.yaxis.set_major_formatter(FixedFormatter([str(t) for t in tick_positions]))

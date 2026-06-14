@@ -60,6 +60,12 @@ try:
                   col=SushiColors(6), space=0.01)
     ax.set_xlabel("chromosome", fontsize=10, fontweight="bold")
     panel(ax, "A", "GWAS")
+    # R also adds zoom markers for chr11 1.65-2.35Mb and chr15 72-74Mb
+    from sushi import zoomsregion, zoombox
+    zoomsregion(ax, region=(500000, 5050000), chrom="chr11", genome=genome,
+                extend=(0.05, 0.2), wideextend=0.1, offsets=(0, 0.535), highlight=True)
+    zoomsregion(ax, region=(72000000, 74000000), chrom="chr15", genome=genome,
+                extend=(0.05, 0.2), wideextend=0.1, offsets=(0.535, 0), highlight=True)
     save(fig, "A_gwas")
     print("A done")
 except Exception as ex:

@@ -26,10 +26,10 @@ Conventions:
       to call fig.subplots_adjust(...) and savefig).
     * Output paths are not handled by the plotters; the caller decides.
 
-Version: 0.1.17 (2026-06-14)
+Version: 0.1.18 (2026-06-14)
 """
 
-__version__ = "0.1.17"
+__version__ = "0.1.18"
 
 from ._helpers import (
     SushiColors,

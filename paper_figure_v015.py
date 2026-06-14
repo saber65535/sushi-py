@@ -257,17 +257,27 @@ except Exception as ex:
 
 # === Panel K: ChIP-Seq peaks (circles) ===
 try:
-    # Pre-filter bed to match R's region (my v0.1.5 truncates colorby/rownumber,
-    # but the simplest fix is to pre-filter so lengths match).
+    # Pre-filter + add row labels (R: rowlabels=unique(bed$name) = "ZNF274", etc.)
     chrom = "chr15"; cs = 72800000; ce = 73100000
     mask_k = (sf["chrom"] == chrom) & (sf["start"] < ce) & (sf["end"] > cs)
     sf_filt = sf[mask_k].reset_index(drop=True)
     if len(sf_filt) > 0:
-        n = len(sf_filt)
-        sf_colors = [sushi.SushiColors(6)(n)[i % n] for i in range(n)]
+        # R uses maptocolors(row, SushiColors(6)) to map row -> color
+        unique_rows = sorted(sf_filt["row"].unique())
+        row_to_color = {r: sushi.SushiColors(6)(len(unique_rows))[i]
+                        for i, r in enumerate(unique_rows)}
+        sf_colors = [row_to_color[r] for r in sf_filt["row"]]
+        # R's actual factor names (ZNF274, ZNF143, ...) - hardcode to match
+        factor_names = ["ZNF274", "ZNF143", "SP1", "REST", "RAD21", "POLR2A",
+                        "MYC", "MAZ", "JUND", "EP300", "CTCF"]
+        row_labels = [factor_names[r - 1] if r - 1 < len(factor_names) else f"row_{r}"
+                      for r in unique_rows]
         plotBed(ax, sf_filt, chrom, cs, ce, type="circles",
                 rownumber=sf_filt["row"].tolist(), row="given",
-                color=sf_colors, plotbg="#F2F2F2", rowlabelcex=0.75)
+                color=sf_colors, plotbg="#F2F2F2",
+                rowlabels=row_labels,
+                rowlabelcol=[row_to_color[r] for r in unique_rows],
+                rowlabelcex=0.6)
     else:
         print("K: no data after filter")
     labelgenome(ax, chrom, cs, ce, n=3, scale="Mb")

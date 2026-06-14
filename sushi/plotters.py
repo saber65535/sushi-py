@@ -112,11 +112,19 @@ def plotBedgraph(ax, signal, chrom: str, chromstart: int, chromend: int,
 
     if not overlay:
         ax.set_xlim(chromstart, chromend)
-        ax.set_ylim(range_)
         for spine in ax.spines.values():
             spine.set_visible(False)
         ax.set_xticks([])
         ax.set_yticks([])
+    # Set ylim always (matches R which always calls plot(..., ylim=range, ...))
+    # regardless of overlay. The rescaleoverlay block below may override this.
+    if not overlay:
+        ax.set_ylim(range_)
+    else:
+        # In overlay mode, R still sets the ylim to the global range so
+        # multiple overlays use the same scale.
+        ax.set_ylim(range_)
+    if not overlay:
         ax.autoscale(enable=False)
 
     if rescaleoverlay:
@@ -131,9 +139,9 @@ def plotBedgraph(ax, signal, chrom: str, chromstart: int, chromend: int,
     fill_color = to_hex(rgba)
 
     if colorbycol is None:
-        # Use proper step-function polygon (NOT the starts+stops_reversed
-        # zigzag that drew diagonal lines connecting first/last bins).
-        # See _bedgraph_step_polygon docstring for why.
+        # No gradient color -- fill the step-function polygon in a single
+        # solid color (R does this with `polygon(signaltrack, col=finalcolor)`
+        # where signaltrack is the (n, 2) x/value matrix).
         poly_x, poly_y = _bedgraph_step_polygon(signaltrack, baseline=range_[0])
         ax.fill(poly_x, poly_y, color=fill_color, linewidth=0)
         # Outline = top edge of step function only (no baseline retrace)
@@ -144,24 +152,80 @@ def plotBedgraph(ax, signal, chrom: str, chromstart: int, chromend: int,
         outline_y = np.concatenate([values, [values[-1]]])
         ax.plot(outline_x, outline_y, color=linecolor, linewidth=lwd, clip_on=False)
     else:
-        # gradient background (R plotBedgraph with colorbycol)
-        max_val = float(np.nanmax(np.abs(signaltrack[:, 2])))
-        n_steps = max(2, min(50, len(signaltrack)))
-        xs_step = np.linspace(signaltrack[0, 0], signaltrack[-1, 1], n_steps)
-        ys_step = np.interp(xs_step, signaltrack[:, 0], signaltrack[:, 2])
-        colors_step = maptocolors(np.abs(ys_step).tolist(), colorbycol, num=100,
-                                   range=(0, max_val if max_val > 0 else 1))
-        polys = []
-        for i in range(len(xs_step) - 1):
-            x0, x1 = xs_step[i], xs_step[i + 1]
-            y_top = max(ys_step[i], ys_step[i + 1])
-            polys.append([[x0, range_[0]], [x1, range_[0]],
-                          [x1, y_top], [x0, y_top]])
-        pc = PolyCollection(polys, closed=True,
-                             facecolors=colors_step[:-1], edgecolors="none")
-        ax.add_collection(pc)
-        outline_x = np.concatenate([signaltrack[:, 0], signaltrack[:, 1][::-1]])
-        outline_y = np.concatenate([signaltrack[:, 2], signaltrack[:, 2][::-1]])
+        # Gradient color background (R plotBedgraph with colorbycol).
+        #
+        # R's actual implementation (R/plotBedgraph.R lines 171-213):
+        #   bgcol = maptocolors((1:100), colorbycol)  # 100 evenly-spaced colors
+        #   tops = seq(plotbot, plottop, length.out=101)[2:101]  # 100 top y values
+        #   bots = seq(plotbot, plottop, length.out=101)[1:100]  # 100 bottom y values
+        #   for i in (3:(nrow(signaltrack)-1)) {  # each bin (skipping
+        #       # the first row that R prepends as a baseline, and the last)
+        #     ybots = bots[which(bots <= signaltrack[i, 2])]  # rect bottoms
+        #     ytops = tops[which(tops <  signaltrack[i, 2])]  # rect tops
+        #     ytops = c(ytops, signaltrack[i, 2])  # last top = actual value
+        #     rect(xleft=signaltrack[i-1,1], ybottom=ybots,
+        #          xright=signaltrack[i,1], ytop=ytops, col=xybgcol)
+        #   }
+        #
+        # R's ylim is set to (plotbot, plottop) = (0, 1.04*max(values)) by
+        # default. For each bin, it draws a column of 100 rects from
+        # plotbot up to signaltrack[i, 2], with each rect's color
+        # determined by its y position. R does NOT clip bins to plotbot;
+        # the last rect's ytop is the bin value itself (which can exceed
+        # plottop, making it use the last color = SushiColors(n)(100) = end
+        # of the gradient).
+        if not overlay:
+            plotbot, plottop = range_
+        else:
+            plotbot, plottop = ax.get_ylim()
+        if not flip:
+            tops = np.linspace(plotbot, plottop, 101)[1:101]   # 100 tops
+            bots = np.linspace(plotbot, plottop, 101)[:100]     # 100 bots
+        else:
+            tops_rev = np.linspace(plotbot, plottop, 101)
+            tops = tops_rev[:100][::-1]  # 100 tops, descending
+            bots = tops_rev[1:101][::-1]  # 100 bots, descending
+        bgcol = colorbycol(100)  # 100 evenly-spaced colors
+        # R prepends a baseline row: c(min(start), -0.00001) so the loop
+        # starts at row 2 (i=2 in 1-based) and the bin value is at
+        # signaltrack[i, 1]. Our 3-col matrix has the same row order.
+        # We start at i=1 (Python) = second row in our 0-indexed matrix.
+        for i in range(1, len(signaltrack)):
+            bin_value = signaltrack[i, 2]
+            # R clips to plotbot..plottop for the band lookup, then uses
+            # the actual value for the last top.
+            if not flip:
+                bot_mask = bots <= bin_value
+                top_mask = tops < bin_value
+            else:
+                bot_mask = bots >= bin_value
+                top_mask = tops > bin_value
+            ybots = bots[bot_mask]
+            ytops = tops[top_mask]
+            ytops = np.concatenate([ytops, [bin_value]]) if ytops.size else np.array([bin_value])
+            if ybots.size == 0:
+                continue
+            xleft = signaltrack[i - 1, 0]
+            xright = signaltrack[i, 0]   # NOTE: in R's signaltrack (n,2),
+                                        # col 1 is value; col 0 is x. In our
+                                        # (n, 3) matrix, cols are (start, stop,
+                                        # value). R's i-th bin xrange is
+                                        # signaltrack[i-1, 1] to signaltrack[i, 1].
+                                        # We approximate with i-1's start and i's
+                                        # start (which equal the bin boundary).
+            xs = [xleft, xright, xright, xleft]
+            for j in range(len(ytops)):
+                ybottom = ybots[j] if j < len(ybots) else ybots[-1]
+                ytop = ytops[j]
+                color_idx = min(j, len(bgcol) - 1)
+                ax.fill(xs + [xs[0]], [ybottom, ybottom, ytop, ytop, ybottom],
+                        color=bgcol[color_idx], linewidth=0, edgecolor="none")
+        # Outline on top
+        starts = signaltrack[:, 0]
+        stops = signaltrack[:, 1]
+        values = signaltrack[:, 2]
+        outline_x = np.concatenate([starts, [stops[-1]]])
+        outline_y = np.concatenate([values, [values[-1]]])
         ax.plot(outline_x, outline_y, color=linecolor, linewidth=lwd, clip_on=False)
 
     if addscale:

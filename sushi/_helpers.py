@@ -102,11 +102,16 @@ def chromOffsets(genome, space: float = 0.01) -> pd.DataFrame:
 # SushiColors -- discrete palette factory
 # ---------------------------------------------------------------------------
 _PALETTES = {
+    # Palettes match R/Bioconductor Sushi 1.32.0 exactly (R/SushiColors.R
+    # line 49-79). Earlier versions of this table were wrong (off-by-one
+    # and missing the "black" stop for n=5/6), which made plotBedgraph
+    # with colorbycol=SushiColors(5) render only the blue end of the
+    # gradient and miss the dark and warm stops that R vignettes show.
     2: ["blue", "#E5001B"],
     3: ["blue", "#E5001B", "orange"],
     4: ["blue", "#5900E5", "#E5001B", "orange"],
-    5: ["blue", "#5900E5", "#E5001B", "orange", "yellow"],
-    6: ["blue", "#5900E5", "#E5001B", "orange", "yellow"],
+    5: ["black", "blue", "#5900E5", "#E5001B", "orange"],
+    6: ["black", "blue", "#5900E5", "#E5001B", "orange", "yellow"],
     7: ["black", "blue", "#5900E5", "#E5001B", "orange", "yellow", "white"],
 }
 

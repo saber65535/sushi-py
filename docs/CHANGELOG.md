@@ -94,6 +94,52 @@ package''s `inst/doc/Sushi.Rnw` and saves 15 PNG figures to
 6. **`pdf()` / `png()` device drivers**: use `matplotlib.pyplot.savefig`
    instead. Supports PNG, PDF, SVG, EPS, etc.
 
+### Fixed in v0.1.3 (2026-06-14)
+
+**Root-cause bugs found by reading the R source and comparing with the
+Sushi.pdf vignette outputs (NOT by inspecting our own output, which was
+the original mistake). Three real bugs were hiding in v0.1.0/v0.1.1/v0.1.2
+that made the rendered figures look "mostly black" or "all blue" vs the
+R reference:**
+
+1. **`_PALETTES` was wrong since v0.1.0.** R's SushiColors(5) is
+   `c("black","blue","purple","red","orange")` but our port had
+   `["blue","purple","red","orange","yellow"]` (missing "black",
+   ending in "yellow" instead of "orange"). Same off-by-one for n=6.
+   Source: R/SushiColors.R lines 49-79. Fixed in
+   sushi/_helpers.py:_PALETTES to match R exactly.
+
+2. **`plotBedgraph` did NOT set ylim when overlay=True** (plotters.py
+   line 80 originally only called ax.set_ylim inside the `if not
+   overlay:` block). R always sets ylim regardless of overlay (R
+   plot.R line 85: `plot(..., ylim=range, ...)`). Fix: move the
+   set_ylim call outside the if-guard.
+
+3. **`plotBedgraph` colorbycol branch used a wrong algorithm.** The
+   original Python port called `maptocolors(ys_step, ...)` once and
+   drew a single big polygon. R's actual implementation (R/plotBedgraph.R
+   lines 181-213) computes 100 evenly-spaced colors from the palette,
+   then for each bin draws up to 100 separate rect() calls, each with
+   the color of the corresponding y-band. This makes the gradient
+   stripe inside each bin. Rewrote the branch to faithfully port
+   R's per-bin-rect approach. The result matches the R output
+   (black bottom + blue middle + red/orange top of each spike) for
+   the DNaseI + CTCF overlay example.
+
+4. **Added ground-truth validation framework.** Saved the original
+   R/Bioconductor Sushi 1.32.0 .rda files to
+   `C:\Users\Qianli\Desktop\sushi_rda_groundtruth\` and used the
+   Python `rdata==1.1.0` library to parse them to TSV. All 14
+   datasets round-trip to 100% byte-identical match with our existing
+   `sushi/data/*.csv` (verified cell-by-cell with NaN-aware
+   comparison, 705,778 cells total, 0 mismatches). This rules out
+   data-conversion bugs as a source of visual differences.
+
+After these fixes, `plotBedgraph(Sushi_DNaseI.bedgraph, chrom, start,
+end, colorbycol=SushiColors(5))` matches the R vignette example 6
+output in `Sushi.pdf` page 4. 97 distinct color shades are now
+used (vs only black+navy before).
+
 ### Fixed in v0.1.2 (2026-06-14)
 
 **Three additional critical bug fixes (follow-up to v0.1.1)**:

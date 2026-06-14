@@ -332,4 +332,34 @@ If you use this Python port, please cite the original R paper:
 
 This Python port does not introduce a new citation; it is faithful to the
 algorithms and parameters of the original R package (Bioconductor
-`Sushi 1.32.0`, GPL ≥ 2 license).
+`Sushi 1.32.0`, GPL ≥ 2 license).### Fixed in v0.1.14 (2026-06-14)
+
+**Real bug found by honest visual inspection of v0.1.13 outputs.**
+
+When the user asked "你真的有检查过你画出来的东西么", I went panel-by-panel
+through the saved PNGs and discovered several real problems I had missed:
+
+1. **`plotHic` was drawing the upper triangle (NaN cells) as black** because
+   `np.nan_to_num(NaN, nan=0)` clobbered NaN to 0, then maptocolors mapped
+   0 to black. The result was a 90% black panel with only a thin colored
+   strip at the bottom edge. Fixed by using `nan_mask` directly to skip
+   upper-triangle cells in the rendering loop (no fill drawn for them).
+
+The remaining panel-by-panel comparison found:
+- Panel A GWAS: 接近 R
+- Panel B HiC: v0.1.14 修了 upper-triangle 问题, 现在下三角彩色接近 R
+- Panel C 5C: 接近 R (loops + K562/HeLa/GM12878 legend)
+- Panel D ChIA-PET: 还需修 "lines" plottype (R 是水平直线+两端 tick, 我的是 H+I 矩形)
+- Panel E DnaseI: 实际接近 R (colorbycol 100 rects 渐变在工作, 我之前误判"全蓝")
+- Panel F ChIP-Seq/Exo: 接近 R
+- Panel G ChIP-Seq pile-up: 12 排 (R 5-6 排)
+- Panel H GWAS zoom: 接近 R
+- Panel I Gene Density: 接近 R
+- Panel J RNA-seq: 缺 FPKM legend
+- Panel K ChIP-seq circles: 缺 row labels
+- Panel L Pol2: 实际接近 R
+- Panel M RNA-seq: 实际接近 R
+- Panel N Gene Structures: Sushi_genes.bed 5 个 exon (200bp) 嵌在 22kb viewport 太小
+                                (5 vertical lines 几乎不可见), 数据对但视觉过 thin
+
+### Fixed in v0.1.13 (2026-06-14)

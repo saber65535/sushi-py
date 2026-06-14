@@ -720,18 +720,11 @@ def plotHic(ax, hicdata, chrom: str, chromstart: int, chromend: int,
     # Replace NaN with min_z so maptocolors can bucket them safely.
     # Then post-replace cells in the color matrix that are NaN in the original
     # hicregion with a transparent color so the upper-triangle doesn't render.
-    flat_clean = np.nan_to_num(hicregion.flatten(), nan=min_z)
-    hicmcol_flat = maptocolors(flat_clean.tolist(), palette, num=100,
+    nan_mask = np.isnan(hicregion)
+    flat_for_color = np.where(nan_mask, min_z, hicregion).flatten()  # don't NaN-clobber for maptocolors
+    hicmcol_flat = maptocolors(flat_for_color.tolist(), palette, num=100,
                                  rng=(min_z, max_z))
     hicmcol = np.array(hicmcol_flat).reshape(hicregion.shape)
-    # cells that were NaN in original -> transparent (use a sentinel color)
-    nan_mask = np.isnan(hicregion)
-    if nan_mask.any():
-        # matplotlib polygons with edgecolor='none' and facecolor='none'
-        # draw nothing -- we need to leave them alone; the loop below already
-        # only iterates row/col within nbins so NaN cells in upper triangle
-        # are never drawn.
-        pass
     if not flip:
         ax.set_xlim(chromstart, chromend)
         ax.set_ylim(0, max_y)
@@ -750,10 +743,10 @@ def plotHic(ax, hicdata, chrom: str, chromstart: int, chromend: int,
             y = (y + 0.5) if not flip else (y - 0.5)
             xs = [x - stepsize, x, x + stepsize, x, x - stepsize]
             ys = [y, y + 0.5, y, y - 0.5, y]
-            cell_color = hicmcol[colnum, rownum]
-            # Skip NaN cells (upper triangle of padded square)
-            if isinstance(cell_color, str) and cell_color == "transparent":
+            # Skip upper-triangle cells (where hicdata was NaN)
+            if nan_mask[rownum, colnum]:
                 continue
+            cell_color = hicmcol[rownum, colnum]
             ax.fill(xs, ys, color=cell_color, edgecolor="none")
     return [min_z, max_z], palette
 

@@ -192,6 +192,11 @@ try:
     ax.set_ylabel("Z-score", fontsize=10, fontweight="bold")
     ax.set_xlabel("chromosome", fontsize=10, fontweight="bold")
     panel(ax, "H", "GWAS")
+    # R adds zoom markers for chr15 72-74Mb
+    from sushi import zoombox, zoomsregion
+    zoomsregion(ax, region=(72000000, 74000000), chrom="chr15", genome=None,
+                extend=(0.075, 1.0), offsets=(0.0, 0))
+    zoombox(ax, zoomregion=(72000000, 74000000), topextend=5)
     save(fig, "H_gwas_zoom")
     print("H done")
 except Exception as ex:

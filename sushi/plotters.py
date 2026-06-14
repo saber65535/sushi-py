@@ -259,6 +259,11 @@ def plotBed(ax, beddata, chrom: str, chromstart: int, chromend: int,
     """Plot BED-format data as regions, circles, or density heatmap."""
     if palettes is None:
         palettes = SushiColors(7)
+    # If palettes is a SushiColors factory (callable), expand it to a list of
+    # a single 7-color palette. Otherwise, expect palettes to already be a list
+    # of palettes (R's list(SushiColors(7)) pattern).
+    if callable(palettes) and not isinstance(palettes, (list, tuple)):
+        palettes = [palettes(7)]
 
     if isinstance(beddata, pd.DataFrame):
         df = beddata.copy()
@@ -293,7 +298,7 @@ def plotBed(ax, beddata, chrom: str, chromstart: int, chromend: int,
 
     if colorby is not None:
         df["plotcolor"] = maptocolors([float(c) for c in colorby], colorbycol,
-                                       num=100, range=colorbyrange)
+                                       num=100, rng=colorbyrange)
     else:
         df["plotcolor"] = color
     if rownumber is not None:
@@ -389,8 +394,19 @@ def plotBed(ax, beddata, chrom: str, chromstart: int, chromend: int,
                        c=colors, edgecolors="none", zorder=2)
 
     elif type == "density":
+        # R uses a single row by default for density, but if row="given" and
+        # rownumber is supplied, it iterates rows.
+        if row == "given" and rownumber is not None:
+            # group df by rownumber, render each row with its own palette
+            unique_rows = sorted(set(rownumber))
+            numberofrows = len(unique_rows)
+            row_to_palette = {r: palettes[i] if i < len(palettes) else palettes[0]
+                              for i, r in enumerate(unique_rows)}
+        else:
+            unique_rows = [1]
+            numberofrows = 1
+            row_to_palette = {1: palettes[0] if palettes else SushiColors(7)(7)}
         if len(palettes) < numberofrows:
-            print(f"less palettes ({len(palettes)}) than rows ({numberofrows}); using first palette for all")
             palettes = [palettes[0]] * numberofrows
         ax.set_xlim(chromstart, chromend)
         ax.set_ylim(0.5, numberofrows + 0.5)
@@ -399,15 +415,25 @@ def plotBed(ax, beddata, chrom: str, chromstart: int, chromend: int,
         ax.set_xticks([])
         ax.set_yticks([])
         bins = np.linspace(chromstart, chromend, numbins + 1)
-        for row_idx in range(1, numberofrows + 1):
-            sub = df[df["plotrow"] == row_idx]
+        for row_idx, row_num in enumerate(unique_rows, start=1):
+            if row == "given" and rownumber is not None:
+                mask = (np.asarray(rownumber) == row_num)
+                sub = df[mask]
+            else:
+                sub = df
             if len(sub) == 0:
                 continue
             x_centers = np.clip((sub.iloc[:, 1].values + sub.iloc[:, 2].values) / 2.0,
                                 chromstart, chromend)
             counts, _ = np.histogram(x_centers, bins=bins)
             smooth = np.convolve(counts, np.ones(binsmoothing), mode="same")
-            colors = maptocolors(smooth.tolist(), palettes[row_idx - 1], num=100)
+            # The palette is the row's palette, expanded to num+1 colors
+            row_palette = row_to_palette[row_num]
+            if callable(row_palette):
+                colors = maptocolors(smooth.tolist(), row_palette, num=100)
+            else:
+                # row_palette is already a list of colors
+                colors = maptocolors(smooth.tolist(), row_palette, num=100)
             polys = []
             for i in range(len(bins) - 1):
                 polys.append([[bins[i], row_idx - 0.5], [bins[i + 1], row_idx - 0.5],
@@ -550,7 +576,7 @@ def plotBedpe(ax, bedpedata, chrom: str, chromstart: int, chromend: int,
 
     if colorby is not None:
         df["color"] = maptocolors(df["colorbyvalue"].astype(float).tolist(),
-                                    colorbycol, num=100, range=colorbyrange)
+                                    colorbycol, num=100, rng=colorbyrange)
         if colorbyrange is None:
             colorbyrange = (float(np.nanmin(df["colorbyvalue"])),
                              float(np.nanmax(df["colorbyvalue"])))
@@ -696,7 +722,7 @@ def plotHic(ax, hicdata, chrom: str, chromstart: int, chromend: int,
     # hicregion with a transparent color so the upper-triangle doesn't render.
     flat_clean = np.nan_to_num(hicregion.flatten(), nan=min_z)
     hicmcol_flat = maptocolors(flat_clean.tolist(), palette, num=100,
-                                 range=(min_z, max_z))
+                                 rng=(min_z, max_z))
     hicmcol = np.array(hicmcol_flat).reshape(hicregion.shape)
     # cells that were NaN in original -> transparent (use a sentinel color)
     nan_mask = np.isnan(hicregion)
@@ -769,7 +795,7 @@ def plotGenes(ax, geneinfo, chrom: str, chromstart: int, chromend: int,
     if colorby is not None:
         if colorbyrange is None:
             colorbyrange = (float(np.nanmin(colorby)), float(np.nanmax(colorby)))
-        df["colors"] = maptocolors(colorby, colorbycol, num=100, range=colorbyrange)
+        df["colors"] = maptocolors(colorby, colorbycol, num=100, rng=colorbyrange)
     else:
         df["colors"] = color
 
@@ -981,6 +1007,10 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
     else:
         if chrom is not None:
             df = df[df.iloc[:, 0] == chrom].reset_index(drop=True)
+            # Truncate pvalues to match filtered df (was missing in v0.1.5;
+            # fixed in v0.1.6: scatter raises "x and y must be the same size")
+            if len(neglog_p) > len(df):
+                neglog_p = neglog_p[:len(df)]
         ax.scatter(df.iloc[:, 1].values, neglog_p,
                    c=col if not callable(col) else col(len(df)),
                    s=20, edgecolors="none", **plot_kwargs)

@@ -23,6 +23,7 @@ from typing import Callable, Iterable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from matplotlib.colors import LinearSegmentedColormap
 
 
 # ---------------------------------------------------------------------------
@@ -181,20 +182,47 @@ def SushiColors(palette: Union[int, str] = "fire") -> Optional[Callable]:
 # ---------------------------------------------------------------------------
 # maptocolors
 # ---------------------------------------------------------------------------
-def maptocolors(vec, col: Callable, num: int = 100,
-                range: Optional[Sequence[float]] = None) -> list:
-    """Map a numeric vector to a discrete color palette (R semantics)."""
+def maptocolors(vec, col, num: int = 100,
+                rng = None) -> list:
+    """Map a numeric vector to a discrete color palette (R semantics).
+
+    col may be either a SushiColors factory (callable, e.g. SushiColors(5))
+    or a list of color hex strings. If a list, it is used as-is.
+
+    Note: The R-style parameter `range` is renamed `rng` to avoid shadowing
+    Python's built-in `range` (which would crash any `range(N)` call inside).
+    Callers that pass `range=...` need to be updated to `rng=...`.
+    """
     arr = np.asarray(vec, dtype=float)
-    if range is not None:
-        arr = np.where(arr < range[0], range[0], arr)
-        arr = np.where(arr > range[1], range[1], arr)
-        lo, hi = range
+    if rng is not None:
+        arr = np.where(arr < rng[0], rng[0], arr)
+        arr = np.where(arr > rng[1], rng[1], arr)
+        lo, hi = rng
     else:
         lo, hi = float(np.nanmin(arr)), float(np.nanmax(arr))
     if lo == hi:
-        return [col(1)[0]] * len(arr)
+        if callable(col):
+            return [col(1)[0]] * len(arr)
+        if isinstance(col, (list, tuple)) and len(col) > 0:
+            return [col[0]] * len(arr)
+        return ["#000000"] * len(arr)
     breaks = np.linspace(lo, hi, num=num)
-    palette = col(num + 1)
+    if callable(col):
+        palette = col(num + 1)
+    else:
+        # col is a list/tuple/None. Use mcolors.to_rgba + LinearSegmentedColormap
+        # for smooth interpolation, OR fall back to discrete sampling.
+        from matplotlib.colors import LinearSegmentedColormap, to_rgba
+        col_list = list(col) if col else ["#000000"]
+        # Try smooth interpolation via LinearSegmentedColormap
+        try:
+            stops_rgba = [to_rgba(c) for c in col_list]
+            cm = LinearSegmentedColormap.from_list("mc", stops_rgba, N=num + 1)
+            palette = [cm(i / num) for i in range(num + 1)]
+        except Exception:
+            # Discrete sampling
+            palette = [to_rgba(col_list[min(int(i / num * len(col_list)), len(col_list) - 1)])
+                       for i in range(num + 1)]
     edges = np.concatenate([[-np.inf], breaks, [np.inf]])
     idx = np.digitize(arr, edges) - 1
     idx = np.clip(idx, 0, len(palette) - 1)

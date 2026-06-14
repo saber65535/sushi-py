@@ -173,7 +173,7 @@ def addlegend(ax, range_val=None, title: str = "",
 
     # 99 stops between min and max
     scalecol = maptocolors(np.linspace(range_val[0], range_val[1], 99), palette,
-                            num=100, range=range_val)
+                            num=100, rng=range_val)
 
     xmin, xmax = ax.get_xlim()
     ymin, ymax = ax.get_ylim()

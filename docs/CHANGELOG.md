@@ -94,6 +94,40 @@ package''s `inst/doc/Sushi.Rnw` and saves 15 PNG figures to
 6. **`pdf()` / `png()` device drivers**: use `matplotlib.pyplot.savefig`
    instead. Supports PNG, PDF, SVG, EPS, etc.
 
+### Fixed in v0.1.11 (2026-06-14)
+
+**Major step toward 1:1 reproduction of R PhanstielLab/Sushi
+vignettes/Figure_1.pdf (14 panel layout) — all 14 panels now render.**
+
+Discovered and fixed during full 14-panel PaperFigure.R reproduction:
+
+1. **`maptocolors` `range` parameter shadowed Python's built-in `range`** —
+   renamed to `rng` and updated all callers in `_axes.py` and
+   `plotters.py`. This was the root cause of Panel I (density) showing
+   all black despite maptocolors returning 31 unique colors.
+
+2. **`plotBed` density mode did not support multi-row via `rownumber=`
+   + `row="given"`** — R iterates rows; port only did single-row.
+   Re-implemented to match R's per-row palette behavior.
+
+3. **`maptocolors` did not accept a list of color strings** — added list
+   branch with LinearSegmentedColormap interpolation.
+
+4. **`plotManhattan` with `chrom=` did not truncate `pvalues`** to match
+   filtered df length — fixed Panel H x/y size mismatch.
+
+5. **Panel I (Gene Density)**: biomaRt in R not available; replaced
+   with synthesized 800-gene random BED + colorbyrange=(0, 60).
+
+6. **Panel N (Gene Structures)**: Sushi_genes.bed has no "type" col;
+   pass fake ["box"]*len for box plottype + bigger bheight.
+
+All 14 panels of R's PaperFigure.R now render via `paper_figure_v015.py`.
+~5/14 pixel-perfect with R, ~5/14 close, ~4/14 need vignette-level
+R配套设施 (zoomsregion/zoombox/labelplot).
+
+### Fixed in v0.1.5 (2026-06-14)
+
 ### Fixed in v0.1.5 (2026-06-14)
 
 **Three additional real bugs found by side-by-side comparison with

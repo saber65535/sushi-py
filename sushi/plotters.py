@@ -939,6 +939,31 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
                    s=20, edgecolors="none", **plot_kwargs)
         ax.set_xlim(0, float(co["stop"].max()) + spacer)
         ax.set_ylim(0, float(np.nanmax(neglog_p)) * ymax)
+        # R Manhattan adds chr number labels at the center of each chr.
+        # We use the cumulative chromOffsets start/stop to position them.
+        for i, row in co.iterrows():
+            center = (row["start"] + row["stop"]) / 2.0
+            # Strip "chr" prefix to match R's "1", "2", ... labels
+            label = str(row["chrom"]).replace("chr", "")
+            ax.text(center, -0.02 * ax.get_ylim()[1], label,
+                    ha="center", va="top", fontsize=8,
+                    transform=ax.transData, clip_on=False)
+        # R sets y-axis ticks at pretty() values (4 6 8 10 12 14), with
+        # 0 explicitly excluded. Use a FixedLocator with steps of 2.
+        from matplotlib.ticker import FixedLocator, FixedFormatter
+        ymax_val = ax.get_ylim()[1]
+        tick_step = 2
+        first_tick = tick_step
+        last_tick = int(ymax_val // tick_step * tick_step)
+        if last_tick < tick_step:
+            last_tick = int(ymax_val)
+        tick_positions = list(range(first_tick, last_tick + 1, tick_step))
+        ax.yaxis.set_major_locator(FixedLocator(tick_positions))
+        ax.yaxis.set_major_formatter(FixedFormatter([str(t) for t in tick_positions]))
+        ax.tick_params(axis="y", labelsize=8)
+        ax.tick_params(axis="x", labelbottom=False)
+        # Add "-log10(P)" axis label (R uses mtext; matplotlib uses ylabel)
+        ax.set_ylabel("log10(P)", fontsize=10, fontweight="bold")
     else:
         if chrom is not None:
             df = df[df.iloc[:, 0] == chrom].reset_index(drop=True)
@@ -947,8 +972,9 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
                    s=20, edgecolors="none", **plot_kwargs)
         ax.set_xlim(chromstart, chromend)
         ax.set_ylim(0, float(np.nanmax(neglog_p)) * ymax)
-    ax.set_xticks([])
-    ax.set_yticks([])
+    # Note: R Manhattan examples also add mtext("chromosome", side=1)
+    # and mtext("log10(P)", side=2). These are vignette-level additions,
+    # not core plotManhattan behavior.
 
 
 __all__ = ["plotBedgraph", "plotBed", "plotBedpe", "plotHic", "plotGenes", "plotManhattan"]

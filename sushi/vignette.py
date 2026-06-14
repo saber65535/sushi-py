@@ -200,15 +200,29 @@ def ex11_severalfactors_region():
 
 
 def ex12_manhattan():
+    """R vignette example 12: plotManhattan(GWAS) + labelplot.
+
+    R code:
+        plotManhattan(Sushi_GWAS.bed, pvalues=Sushi_GWAS.bed[,5],
+                      col=SushiColors(6), genome=Sushi_hg18_genome,
+                      cex=0.75, space=0.05)
+        labelgenome(genome=Sushi_hg18_genome, n=4, scale="Mb",
+                    edgeblankfraction=0.20, cex.axis=.5, space=0.05)
+        axis(side=2, las=2, tcl=.2, at=pretty(...), labels=-1*pretty(...))
+        mtext("log10(P)", side=2, line=1.75, cex=1, font=2)
+        mtext("chromosome", side=1, line=1.75, cex=1, font=2)
+        labelplot("A) ", "Manhattan Plot")
+    """
     gwas = sushi.data.Sushi_GWAS_bed()
     genome = sushi.data.Sushi_hg18_genome()
-    fig, ax = plt.subplots(figsize=(12, 4)); fig.subplots_adjust(bottom=0.22)
-    plotManhattan(ax, gwas, pvalues=gwas.iloc[:, 4].values, genome=genome, col=SushiColors(6), space=0.01)
-    # R vignette: in genome-only mode, labelgenome takes chrom as NA and
-    # uses genome's chromOffsets. We emulate by setting chrom to chr1 and
-    # letting ax's xlim come from plotManhattan.
-    labelgenome(ax, chrom="chr1", chromstart=0, chromend=1, genome=genome, n=4,
-                scale="Mb", edgeblankfraction=0.20, space=0.01)
+    fig, ax = plt.subplots(figsize=(14, 4))
+    fig.subplots_adjust(bottom=0.18, left=0.10, right=0.95, top=0.92)
+    plotManhattan(ax, gwas, pvalues=gwas.iloc[:, 4].values, genome=genome, col=SushiColors(6), space=0.05)
+    # R's mtext("chromosome", side=1)
+    ax.set_xlabel("chromosome", fontsize=10, fontweight="bold")
+    # R's labelplot: titles "A)" and "Manhattan Plot" at top-left
+    ax.text(0.01, 1.05, "A)", transform=ax.transAxes, fontsize=12, fontweight="bold", va="bottom")
+    ax.text(0.04, 1.05, "Manhattan Plot", transform=ax.transAxes, fontsize=12, fontweight="bold", va="bottom")
     save(fig, "12_manhattan_gwas")
 
 

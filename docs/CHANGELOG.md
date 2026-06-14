@@ -94,6 +94,42 @@ package''s `inst/doc/Sushi.Rnw` and saves 15 PNG figures to
 6. **`pdf()` / `png()` device drivers**: use `matplotlib.pyplot.savefig`
    instead. Supports PNG, PDF, SVG, EPS, etc.
 
+### Fixed in v0.1.4 (2026-06-14)
+
+**Per-plotManhattan R-comparison fixes found by side-by-side visual
+review against R Sushi.pdf page 30** (the only R-rendered example
+for this plot in the Sushi package documentation):
+
+1. **chr number labels (1, 2, ..., 22) on the x-axis** were missing.
+   R's plotManhattan + labelgenome workflow positions chr labels at
+   the center of each chrom. Added text() calls using
+   `chromOffsets(genome, space)` to position the labels correctly.
+
+2. **y-axis -log10(P) tick numbers were 0/2/4/.../14** (matplotlib
+   default). R uses `axis(side=2, las=2, tcl=.2, at=pretty(...), labels=-1*pretty(...))`
+   which excludes 0 (so y=2,4,6,8,10,12,14). Switched to FixedLocator
+   that starts at tick_step=2.
+
+3. **y-axis label** was "-log10(P)" (my choice). R uses "log10(P)"
+   (axis label describes the *transformation* of the displayed values,
+   not the value itself, since R plots -log10(p) but the axis is
+   labelled with the function). Switched to R's convention.
+
+4. **"Manhattan Plot" title at top** was missing. R's vignette adds
+   it via `labelplot("A) ", "Manhattan Plot")` (a separate R
+   function call, not part of plotManhattan). Updated
+   vignette ex12 to mimic this with ax.text() at top-left.
+
+5. **"chromosome" x-axis label** was missing for the same reason.
+   R's vignette adds it via `mtext("chromosome", side=1, line=1.75, ...)`.
+   Updated vignette ex12 to use ax.set_xlabel().
+
+After these fixes, the v0.1.4 `12_manhattan_gwas.png` matches the R
+Sushi.pdf page 30 reference output 1:1 (verified side-by-side via
+vision_analyze): 22 chr labels, 6-color cycle (black→blue→purple→red→orange→yellow),
+6 distinct y-tick numbers 2..14, "log10(P)" y-label, "chromosome"
+x-label, "A)  Manhattan Plot" top title.
+
 ### Fixed in v0.1.3 (2026-06-14)
 
 **Root-cause bugs found by reading the R source and comparing with the

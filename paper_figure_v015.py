@@ -235,12 +235,20 @@ try:
     fig, ax = plt.subplots(figsize=(4, 3))
     fig.subplots_adjust(bottom=0.22, right=0.82, top=0.90)
     mask = transcripts["chrom"] == "chr15"
+    # R: pg = plotGenes(...) returns a list with [[range], palette]
+    # Then addlegend(pg[[1]], palette=pg[[2]], title="log10(FPKM)", side="right", ...)
+    colorby_vals = np.log10(transcripts[mask]["score"].astype(float) + 0.001).tolist()
     plotGenes(ax, transcripts[mask], "chr15", 72800000, 73100000,
               types=transcripts[mask]["type"].tolist(),
-              colorby=np.log10(transcripts[mask]["score"].astype(float) + 0.001).tolist(),
+              colorby=colorby_vals,
               colorbycol=SushiColors(5), labeltext=False,
               maxrows=50, height=0.4, plotgenetype="box")
     labelgenome(ax, "chr15", 72800000, 73100000, n=3, scale="Mb")
+    # Add log10(FPKM) legend on the right
+    addlegend(ax, range_val=(-3, 1.5), palette=SushiColors(5),
+              title="log10(FPKM)", side="right",
+              bottominset=0.4, topinset=0, xoffset=-0.035,
+              labelside="left", width=0.025, title_offset=0.055)
     panel(ax, "J", "RNA-seq")
     save(fig, "J_rnaseq")
     print("J done")

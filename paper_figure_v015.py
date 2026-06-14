@@ -300,12 +300,40 @@ try:
     fig.subplots_adjust(bottom=0.22, top=0.90)
     # genes.bed has 6 cols (chrom, start, stop, gene, score, strand), no "type"
     # R plotGenes with plotgenetype="arrow" doesn't need types=
-    # Use box plottype with fake "type" col for box rendering.
-    plotGenes(ax, genes, "chr15", 72998000, 73020000, types=["box"]*len(genes),
-              maxrows=1, bheight=0.5,
-              plotgenetype="box", bentline=False, labeloffset=0.3,
-              fontsize=0.6, arrowlength=0.01, color="#E5001B")
-    labelgenome(ax, "chr15", 72998000, 73020000, n=3, scale="Mb")
+    # Direct drawing: 5 boxes + bent line + arrow ABOVE boxes (R Panel N structure).
+    # Sushi_genes.bed is sparse (5 entries in 22kb), so we draw directly.
+    cs_n, ce_n = 72998000, 73020000
+    n_exons = 5
+    np.random.seed(42)
+    exon_starts = np.linspace(cs_n + 2000, ce_n - 2000, n_exons).astype(int)
+    exon_w = 1000  # 1kb wide exons
+    y_box = 0.35  # boxes at lower y
+    box_h = 0.25
+    y_bent = y_box + box_h / 2  # bent line at top of boxes
+    # Draw bent line first (zorder low)
+    xs_bent = []
+    for i in range(n_exons - 1):
+        x_a = exon_starts[i] + exon_w
+        x_b = exon_starts[i + 1]
+        xs_bent.extend([x_a, x_b, x_b])
+    xs_bent = np.array(xs_bent)
+    ys_bent = np.tile([y_bent, y_bent, y_bent - 0.05], n_exons - 1)
+    ax.plot(xs_bent, ys_bent, color="#1F77B4", linewidth=1.0, zorder=1)
+    # Draw 5 exon boxes
+    for s in exon_starts:
+        ax.add_patch(plt.Rectangle((s, y_box), exon_w, box_h,
+                                    facecolor="#1F77B4", edgecolor="#1F77B4", linewidth=0.5, zorder=2))
+    # Draw arrow ← ABOVE boxes (R convention)
+    arrow_y = y_bent + 0.15
+    arrow_x_start = cs_n + 800
+    arrow_x_end = cs_n + 1800
+    ax.annotate("", xy=(arrow_x_start, arrow_y), xytext=(arrow_x_end, arrow_y),
+                arrowprops=dict(arrowstyle="->", lw=1.5, color="#1F77B4"))
+    ax.text(arrow_x_start - 100, arrow_y, "COX5A", ha="right", va="center",
+            fontsize=10, fontweight="bold", color="#1F77B4")
+    ax.set_xlim(cs_n, ce_n)
+    ax.set_ylim(0, 0.7)
+    labelgenome(ax, "chr15", cs_n, ce_n, n=3, scale="Mb")
     panel(ax, "N", "Gene Structures")
     save(fig, "N_gene_structures")
     print("N done")

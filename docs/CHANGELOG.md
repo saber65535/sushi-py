@@ -94,6 +94,39 @@ package''s `inst/doc/Sushi.Rnw` and saves 15 PNG figures to
 6. **`pdf()` / `png()` device drivers**: use `matplotlib.pyplot.savefig`
    instead. Supports PNG, PDF, SVG, EPS, etc.
 
+### Fixed in v0.1.2 (2026-06-14)
+
+**Three additional critical bug fixes (follow-up to v0.1.1)**:
+
+1. **`SushiColors` factory didn't interpolate colors**. The original
+   `_SushiPaletteFactory.__call__` rounded n evenly-spaced positions to
+   the nearest of 7 discrete stops, so `SushiColors(7)(101)` returned
+   only 7 unique colors no matter what n you asked for. R's
+   `colorRampPalette` interpolates in LAB color space. Replaced with
+   `matplotlib.colors.LinearSegmentedColormap.from_list` which does
+   the same.
+
+2. **`plotBedpe`/`plotBed` called `convertstrandinfo` on the strand
+   columns, which converted "." / "+" to int 1 and assigned to a
+   dtype='str' pandas column, raising `Invalid value for dtype 'str'`
+   for ex05, ex06, ex10, ex11, ex12. Fix: (a) removed the auto-call
+   in `plotBedpe` (the numeric strand was never used downstream), and
+   (b) in `plotBed` only convert when `splitstrand=True` is requested.
+
+3. **`plotManhattan` int column got float assignment**. The line
+   `df.loc[mask, df.columns[1]] = df.loc[mask, df.columns[1]] + offset`
+   added a float chrom offset to an int position column. Fix: cast
+   through float then back to int.
+
+Also: vignette example 04 (`ex04_hic`) now uses `topo.colors` palette
+and `flip=True` to match R's rendered output on Sushi.pdf page 11
+(matches the actual Hi-C matrix page in the package documentation).
+
+Result: **15/15 vignette examples now pass on local + production**.
+The earlier "10/15" was real (pre-existing in v0.1.0/v0.1.1, not
+introduced by v0.1.1's plotBedgraph fix) — these 5 bugs were silent
+when the user only ran the other examples.
+
 ### Fixed in v0.1.1 (2026-06-14)
 
 **Critical bug fix in `plotBedgraph`** (caught by user on `44_PolII/sushi_6candidate_v1.png`):

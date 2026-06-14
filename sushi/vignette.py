@@ -70,10 +70,16 @@ def ex03_flip():
 
 
 def ex04_hic():
+    """R vignette example 04: plotHic + addlegend + labelgenome on chr11.
+
+    Uses R's topo.colors palette (not SushiColors(7)) and flip=TRUE because
+    those are the settings shown in the rendered vignette in the package
+    PDF (inst/doc/Sushi.pdf page 11). SushiColors(7) starts with "black"
+    which makes the 0-valued upper-triangle cells look pitch black; topo.colors
+    starts with dark blue which renders the same cells as visible blue
+    diamonds, matching R's rendered output.
+    """
     hic = sushi.data.Sushi_HiC_matrix()
-    # R stores HiC as lower-triangular (114 rows, 113 cols). Build a square
-    # (114, 114) matrix padded with NaN in the upper triangle so that
-    # pandas + plotHic are happy.
     import numpy as _np, pandas as _pd
     pos = hic["positions"].astype(int)
     m = hic["matrix"]
@@ -82,15 +88,28 @@ def ex04_hic():
         for j in range(i, m.shape[1]):
             full[i, j] = m[i, j]
     hic_df = _pd.DataFrame(full, index=pos, columns=pos)
+    # topo.colors equivalent: dark blue -> mid blue -> white -> yellow
+    # (R default topo.colors, ~11 stops, interpolated to 101 buckets)
+    import matplotlib.colors as _mc
+    topo_cmap = _mc.LinearSegmentedColormap.from_list(
+        "topo",
+        ["#000080", "#1E1EFF", "#8080FF", "#C0C0FF",
+         "#FFFF80", "#FFFF00", "#FFE600"],
+        N=256,
+    )
+    def topo_factory(n):
+        positions = _np.linspace(0.0, 1.0, n)
+        rgba = topo_cmap(positions)
+        return [_mc.to_hex(c, keep_alpha=False) for c in rgba]
     fig, ax = plt.subplots(figsize=(10, 6))
-    fig.subplots_adjust(bottom=0.22, right=0.82)
+    fig.subplots_adjust(bottom=0.22, left=0.18)  # leave room for left-side legend
     phic = plotHic(ax, hic_df, "chr11", 500000, 5050000, max_y=20,
-                   zrange=(0, 28), palette=SushiColors(7))
-    addlegend(ax, range_val=phic[0], palette=phic[1], title="score", side="right",
-              bottominset=0.4, topinset=0, xoffset=-0.035,
-              labelside="left", width=0.025, title_offset=0.035)
+                   zrange=(0, 28), palette=topo_factory, flip=True)
+    addlegend(ax, range_val=phic[0], palette=phic[1], title="score", side="left",
+              bottominset=0.1, topinset=0.5, xoffset=-0.035,
+              labelside="right", width=0.025, title_offset=0.035)
     labelgenome(ax, "chr11", 500000, 5050000, n=4, scale="Mb",
-                edgeblankfraction=0.20, side=1)
+                edgeblankfraction=0.20, side=3)  # side=3 = top
     save(fig, "04_hic_chr11")
 
 def ex05_bedpe_loops():

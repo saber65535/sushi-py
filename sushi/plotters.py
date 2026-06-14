@@ -206,7 +206,11 @@ def plotBed(ax, beddata, chrom: str, chromstart: int, chromend: int,
         try:
             int(col5.iloc[0])
         except (TypeError, ValueError):
-            df.iloc[:, 5] = convertstrandinfo(col5.tolist())
+            # Only convert strand to numeric if splitstrand=True needs
+            # the +/- for sorting. Otherwise keep as string to avoid
+            # "Invalid value for dtype 'str'" errors downstream.
+            if splitstrand:
+                df.iloc[:, 5] = convertstrandinfo(col5.tolist())
 
     df = df[(df.iloc[:, 0].astype(str) == chrom) &
             (((df.iloc[:, 1] > chromstart) & (df.iloc[:, 1] < chromend)) |
@@ -420,9 +424,15 @@ def plotBedpe(ax, bedpedata, chrom: str, chromstart: int, chromend: int,
     else:
         df = pd.DataFrame(bedpedata)
 
-    if df.shape[1] >= 10:
-        df.iloc[:, 8] = convertstrandinfo(df.iloc[:, 8].tolist())
-        df.iloc[:, 9] = convertstrandinfo(df.iloc[:, 9].tolist())
+    # Note: in v0.1.0/v0.1.1, this function called convertstrandinfo on
+    # cols 8/9, but the converted numeric strands were never used
+    # (R's plotBedpe also only uses start1/start2/stop1/stop2 for
+    # geometry, not strand1/strand2 for direction). Removing the call
+    # lets the strand columns stay as strings (preserving dtype 'str'),
+    # which is what plotBedpe and downstream callers expect.
+    # Callers who need numeric strand (e.g. plotGenes) call
+    # convertstrandinfo themselves on a column they have already
+    # selected.
 
     if len(df) == 0:
         ax.set_xlim(chromstart, chromend)
@@ -849,7 +859,11 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
             if co_number > len(colors):
                 co_number = 1
             mask = (df.iloc[:, 0] == co.iloc[i]["chrom"]).values
-            df.loc[mask, df.columns[1]] = df.loc[mask, df.columns[1]] + co.iloc[i]["start"]
+            # Cast to int (the position column is int64 in the original
+            # data; adding the float chrom offset and assigning back to an
+            # int column raises "Invalid value for dtype 'int64'" in pandas).
+            df.loc[mask, df.columns[1]] = (df.loc[mask, df.columns[1]].astype(float)
+                                              + float(co.iloc[i]["start"])).astype(int)
             co_numbers[mask] = co_number
         sizes = (genome.iloc[:, 1].astype(float).values
                   if isinstance(genome, pd.DataFrame)

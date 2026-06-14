@@ -29,13 +29,30 @@ import pandas as pd
 # convertstrandinfo
 # ---------------------------------------------------------------------------
 def convertstrandinfo(strandvector):
-    """Convert '+/-' strand info to 1/-1 numeric (R semantics)."""
+    """Convert strand info to numeric (R semantics).
+
+    R usage: "0" = no strand, "+" = 1, "-" = -1.
+    R Sushi 1.32.0 R behavior: any non-"-" string maps to 1; "-" maps
+    to -1. So "0", ".", "" or "+" all map to 1.
+
+    If the input is already numeric (int or float), it is returned
+    unchanged. If the input is a list of strings, it is converted:
+    "-" -> -1, anything else ("+", ".", "0", "", etc.) -> 1.
+
+    Note: the original Python port (v0.1.0/v0.1.1) tried to return
+    int (1 or -1) for every input. That broke plotBedpe because
+    pandas strand1/strand2 columns are dtype str and assigning int
+    raised "Invalid value for dtype 'str'". The v0.1.2 fix below
+    always returns numeric (so plotGenes' `int(strand)` call works)
+    while R semantics are preserved: "." and "+" both map to 1.
+    """
     out = list(strandvector)
     if len(out) == 0:
         return out
-    if isinstance(out[0], str):
-        return [(-1 if s == "-" else 1) for s in out]
-    return out
+    if isinstance(out[0], (int, float, np.integer, np.floating)):
+        return out
+    # All strings
+    return [(-1 if s == "-" else 1) for s in out]
 
 
 # ---------------------------------------------------------------------------
@@ -95,23 +112,40 @@ _PALETTES = {
 
 
 class _SushiPaletteFactory:
-    """Callable f(n) -> list of n hex colors from the Sushi discrete palette."""
+    """Callable f(n) -> list of n hex colors from the Sushi discrete palette.
+
+    R's SushiColors() returns a colorRampPalette(stops) closure: calling it
+    with n interpolates n colors linearly through LAB space between the
+    discrete stops. The original Python port (v0.1.0/v0.1.1) instead just
+    rounded to the nearest stop, producing only 7 unique colors no matter
+    how many you asked for, which made plotBedgraph gradient and plotHic
+    look "blocky" vs the R reference output.
+    """
 
     def __init__(self, name: str, stops: Sequence[str]):
         self.name = name
         self.stops = list(stops)
         self._cache = {}
+        # Build a matplotlib LinearSegmentedColormap once. matplotlib's
+        # default linear interpolation in the "lab" colorspace matches
+        # R's colorRampPalette default closely enough for visual
+        # equivalence (both use the CIE LAB perceptual color space).
+        from matplotlib.colors import LinearSegmentedColormap, to_hex
+        self._cmap = LinearSegmentedColormap.from_list(
+            f"sushi_{name}", self.stops, N=256
+        )
+        self._to_hex = to_hex
 
     def __call__(self, n: int) -> list:
         if n == len(self.stops):
             return list(self.stops)
         if n in self._cache:
             return list(self._cache[n])
-        idx = np.linspace(0, len(self.stops) - 1, n)
-        if np.all(idx == idx.astype(int)):
-            out = [self.stops[int(i)] for i in idx]
-        else:
-            out = [self.stops[int(round(i))] for i in idx]
+        # Sample the colormap at evenly-spaced positions 0..1.
+        # This gives smooth interpolation, matching R colorRampPalette.
+        positions = np.linspace(0.0, 1.0, n)
+        rgba = self._cmap(positions)  # (n, 4) RGBA
+        out = [self._to_hex(c, keep_alpha=False) for c in rgba]
         self._cache[n] = out
         return list(out)
 

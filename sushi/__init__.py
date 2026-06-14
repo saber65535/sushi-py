@@ -29,7 +29,7 @@ Conventions:
 Version: 0.1.0 (2026-06-13)
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from ._helpers import (
     SushiColors,

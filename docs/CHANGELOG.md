@@ -94,6 +94,38 @@ package''s `inst/doc/Sushi.Rnw` and saves 15 PNG figures to
 6. **`pdf()` / `png()` device drivers**: use `matplotlib.pyplot.savefig`
    instead. Supports PNG, PDF, SVG, EPS, etc.
 
+### Fixed in v0.1.5 (2026-06-14)
+
+**Three additional real bugs found by side-by-side comparison with
+PhanstielLab/Sushi vignettes/PaperFigure.R (which renders 14 panels
+into Figure_1.pdf, the real ground truth output that I had previously
+overlooked):**
+
+1. **`_local_checkrow_bp` had wrong array indices** (line 1 read
+   `data[1]` and `data[2]` but the caller passes `[start1, stop1]`,
+   a 2-element list). This crashed any `plotBedpe(..., plottype="lines")`
+   with >2K rows. Triggered by PaperFigure.R Panel D (ChIA-PET,
+   48,634 rows). Fixed by using `data[0]` and `data[1]`.
+
+2. **`plotBed` did not truncate caller-supplied colorby/rownumber
+   lists after region-filtering the dataframe**, so pandas raised
+   "Length of values (208) does not match length of index (59)" when
+   the original bed had more rows than the filtered region. Fixed
+   by truncating colorby/rownumber to match the filtered df length
+   before assignment.
+
+3. **`SushiColors(2)(2)` returns a 2-element list** (R's colorRampPalette
+   interpolation between blue and red). Indexing `[2]` (R's 1-based
+   third color) was used in the Panel F / Panel G legend colors but
+   that index is out of range in Python. Fixed by using `[1]` (R's
+   second color = #E5001B) wherever the 1-based third color was
+   intended.
+
+Also added `paper_figure_v014.py` in the repo root that reproduces
+the first 7 panels of R's PaperFigure.R (A=GWAS, B=HiC, C=5C, D=ChIA-PET,
+E=DNaseI, F=ChIP-Seq/Exo, G=ChIP-Seq pile-up) for visual diffing
+against Figure_1.pdf.
+
 ### Fixed in v0.1.4 (2026-06-14)
 
 **Per-plotManhattan R-comparison fixes found by side-by-side visual

@@ -280,6 +280,17 @@ def plotBed(ax, beddata, chrom: str, chromstart: int, chromend: int,
             (((df.iloc[:, 1] > chromstart) & (df.iloc[:, 1] < chromend)) |
              ((df.iloc[:, 2] > chromstart) & (df.iloc[:, 2] < chromend)))].reset_index(drop=True)
 
+    # Caller-supplied colorby/rownumber lists match the ORIGINAL df
+    # length, but df has been filtered to the requested region. We
+    # must truncate these lists to match the filtered df length, otherwise
+    # pandas raises "Length of values does not match length of index".
+    # R's plotBed doesn't have this issue because it works with R vectors
+    # that are subset together with the bed data.
+    if colorby is not None and len(colorby) > len(df):
+        colorby = list(colorby)[:len(df)]
+    if rownumber is not None and len(rownumber) > len(df):
+        rownumber = list(rownumber)[:len(df)]
+
     if colorby is not None:
         df["plotcolor"] = maptocolors([float(c) for c in colorby], colorbycol,
                                        num=100, range=colorbyrange)
@@ -554,8 +565,11 @@ def plotBedpe(ax, bedpedata, chrom: str, chromstart: int, chromend: int,
         df["plotrow"] = 0
 
         def _local_checkrow_bp(data, alldata, maxrows, wiggle):
-            thestart = min(float(data[1]), float(data[2])) - wiggle
-            thestop = max(float(data[1]), float(data[2])) + wiggle
+            # data is [start1, stop1] (2 elements). Was incorrectly using
+            # data[1]/data[2] which would IndexError on the original caller.
+            # Fixed in v0.1.4: use data[0] (start1) and data[1] (stop1).
+            thestart = min(float(data[0]), float(data[1])) - wiggle
+            thestop = max(float(data[0]), float(data[1])) + wiggle
             for row in range(1, maxrows + 1):
                 occ = alldata[alldata["plotrow"] == row]
                 if occ.empty:

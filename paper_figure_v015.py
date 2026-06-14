@@ -75,7 +75,11 @@ except Exception as ex:
 try:
     fig, ax = plt.subplots(figsize=(5, 3))
     fig.subplots_adjust(bottom=0.22, right=0.78, top=0.90)
-    phic = plotHic(ax, hic_df, "chr11", 500000, 5050000, max_y=20, zrange=(0, 28),
+    # R defaults zrange to (min(data), max(data)) not the user's (0, 28).
+    # Use data max to match R actual behavior (max hicdata value = 217).
+    import numpy as np
+    hic_max = float(np.nanmax(hic_df.values))
+    phic = plotHic(ax, hic_df, "chr11", 500000, 5050000, max_y=20, zrange=(0, hic_max),
                    palette=SushiColors(7), flip=False)
     addlegend(ax, range_val=phic[0], palette=phic[1], title="score",
               side="right", bottominset=0.4, topinset=0, xoffset=-0.035,

@@ -157,12 +157,12 @@ except Exception as ex:
 # === Panel F: ChIP-Seq / ChIP-Exo overlay ===
 try:
     fig, ax = plt.subplots(figsize=(4, 3))
-    fig.subplots_adjust(bottom=0.22, right=0.95, top=0.90)
+    fig.subplots_adjust(bottom=0.28, right=0.95, top=0.85, left=0.25)
     plotBedgraph(ax, ctcf_chipseq, "chr11", 1860000, 1861000,
                  transparency=0.5, color=SushiColors(2)(2)[0], overlay=False, rescaleoverlay=False)
     plotBedgraph(ax, ctcf_chipexo, "chr11", 1860000, 1861000,
                  transparency=0.5, color=SushiColors(2)(2)[1], overlay=True, rescaleoverlay=True)
-    labelgenome(ax, "chr11", 1860000, 1861000, n=3, scale="Mb", edgeblankfraction=0.2)
+    labelgenome(ax, "chr11", 1860000, 1861000, n=2, scale="Mb", edgeblankfraction=0.2)
     # Legend IN panel top-right with colored border box (R-style)
     ax.text(0.97, 0.97, "ChIP-seq (CTCF)", transform=ax.transAxes,
             ha="right", va="top", fontsize=6, color="black",
@@ -366,15 +366,46 @@ try:
     else:
         genes_n = genes
     # R default color: navy (matplotlib named color)
-    plotGenes(ax, genes_n, "chr15", 72998000, 73020000,
-              types=genes_n["types"].tolist(),
-              maxrows=1, bheight=0.15, plotgenetype="arrow",
-              bentline=False, labeloffset=1, fontsize=1.2,
-              arrowlength=0.01, col="navy")
-    labelgenome(ax, "chr15", 72998000, 73020000, n=3, scale="Mb")
-    # R default zoombox() draws 3-sided box around panel (no zoom region arg)
-    from sushi import zoombox
-    zoombox(ax, lwd=0.5, lty="--")
+    # Direct draw arrows: skip plotGenes (its self-intersecting arrow
+    # polygon produces ugly vertical lines in matplotlib). Draw 5 flat
+    # arrow rectangles + 1 horizontal connector line, matching R real output.
+    ax.set_xlim(72998000, 73020000)
+    ax.set_ylim(0.5, 1.5)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    yval = 1.0
+    h = 0.075  # half of bheight=0.15
+    bprange = 22000  # chromend - chromstart
+    arrowlength = 0.01
+    strand = -1  # COX5A is on the minus strand
+    offset = bprange * arrowlength * strand * -1  # = 220bp
+    from matplotlib.patches import Polygon as MplPolygon, Rectangle
+    for _, ex in genes_n.iterrows():
+        x0 = ex.iloc[1]
+        x1 = ex.iloc[2]
+        # Top triangle: (x0, yval) -> (x0+offset, yval+h) -> (x1, yval)
+        top = MplPolygon([(x0, yval), (x0+offset, yval+h), (x1, yval)],
+                         closed=True, facecolor="navy", edgecolor="navy", linewidth=0.5)
+        ax.add_patch(top)
+        # Bottom triangle: (x0, yval) -> (x0+offset, yval-h) -> (x1, yval)
+        bot = MplPolygon([(x0, yval), (x0+offset, yval-h), (x1, yval)],
+                         closed=True, facecolor="navy", edgecolor="navy", linewidth=0.5)
+        ax.add_patch(bot)
+        # Body rectangle (the exon itself)
+        ax.add_patch(Rectangle((x0, yval-h/2), x1-x0, h,
+                                facecolor="navy", edgecolor="navy", linewidth=0.5))
+    # Connect exons with horizontal lines
+    exon_starts = genes_n.iloc[:, 1].tolist()
+    exon_stops = genes_n.iloc[:, 2].tolist()
+    for i in range(len(exon_starts) - 1):
+        ax.plot([exon_stops[i], exon_starts[i+1]], [yval, yval],
+                color="navy", linewidth=0.5)
+    # R PaperFigure.R: labelgenome(..., n=3, scale="Mb") with default
+    # line=0.5. Push labels further below to avoid Mb collision.
+    labelgenome(ax, "chr15", 72998000, 73020000, n=3, scale="Mb",
+                line=0.6, chromline=0.4, scaleline=0.4)
     panel(ax, "N", "Gene Structures")
     save(fig, "N_gene_structures")
     print("N done")

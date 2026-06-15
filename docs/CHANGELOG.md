@@ -478,4 +478,25 @@ Round 4 of panel-by-panel visual diff against R Figure_1.pdf ground truth
 3. **Panel N**: color changed to `navy` (R's default, matches R real output
    in the 8x zoomed Figure_1.pdf crop).
 
-### Fixed in v0.1.24 (2026-06-14)
+### Fixed in v0.1.24 (2026-06-14)### Fixed in v0.1.27 (2026-06-14)
+
+Real progress on Panel F, N visual diff against R Figure_1.pdf:
+
+1. **Panel F**:
+   - Reduced n=3 to n=2 ticks in labelgenome to avoid cramped tick labels
+     in 200bp window. Now shows just 1.8601 / 1.8605 / Mb cleanly.
+   - Made legend boxes smaller (fontsize 6→5, pad 0.2→0.1, linewidth 0.6→0.4)
+     to better match R's compact in-panel legend rectangles.
+   - Bigger left margin (subplots_adjust left=0.25) so y-axis tick labels
+     ("1.8801", "1.8605") don't get clipped at left edge.
+
+2. **Panel N**:
+   - Replaced plotGenes(plotgenetype="arrow") (which had a self-intersecting
+     polygon that produced ugly vertical lines in matplotlib) with a direct
+     draw of 5 flat-top arrow triangles + a horizontal connector line.
+     The arrows now look like R real output: 5 distinct ← arrows + 1 line.
+   - Added line=0.6, chromline=0.4, scaleline=0.4 to push labels further
+     below the axis tick labels so "72.998" / "73.02" don't crash with
+     "15" / "Mb".
+
+### Fixed in v0.1.26 (2026-06-14)

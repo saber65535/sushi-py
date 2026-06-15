@@ -157,15 +157,21 @@ except Exception as ex:
 # === Panel F: ChIP-Seq / ChIP-Exo overlay ===
 try:
     fig, ax = plt.subplots(figsize=(4, 3))
-    fig.subplots_adjust(bottom=0.22, top=0.90)
+    fig.subplots_adjust(bottom=0.22, right=0.95, top=0.90)
     plotBedgraph(ax, ctcf_chipseq, "chr11", 1860000, 1861000,
                  transparency=0.5, color=SushiColors(2)(2)[0], overlay=False, rescaleoverlay=False)
     plotBedgraph(ax, ctcf_chipexo, "chr11", 1860000, 1861000,
                  transparency=0.5, color=SushiColors(2)(2)[1], overlay=True, rescaleoverlay=True)
     labelgenome(ax, "chr11", 1860000, 1861000, n=3, scale="Mb", edgeblankfraction=0.2)
-    ax.legend(handles=[mpatches.Patch(color=SushiColors(2)(2)[0], label="ChIP-seq (CTCF)", alpha=0.5),
-                        mpatches.Patch(color=SushiColors(2)(2)[1], label="ChIP-exo (CTCF)", alpha=0.5)],
-              loc="upper right", frameon=False, fontsize=8)
+    # Legend IN panel top-right with colored border box (R-style)
+    ax.text(0.97, 0.97, "ChIP-seq (CTCF)", transform=ax.transAxes,
+            ha="right", va="top", fontsize=6, color="black",
+            bbox=dict(facecolor="white", edgecolor="#1F77B4",
+                      boxstyle="square,pad=0.2", alpha=0.95, linewidth=0.6))
+    ax.text(0.97, 0.91, "ChIP-exo (CTCF)", transform=ax.transAxes,
+            ha="right", va="top", fontsize=6, color="black",
+            bbox=dict(facecolor="white", edgecolor="#E5001B",
+                      boxstyle="square,pad=0.2", alpha=0.95, linewidth=0.6))
     panel(ax, "F", "ChIP-Seq / ChIP-Exo")
     save(fig, "F_chipseq_chipexo")
     print("F done")
@@ -280,30 +286,44 @@ except Exception as ex:
 
 # === Panel K: ChIP-Seq peaks (circles) ===
 try:
-    # Pre-filter + add row labels (R: rowlabels=unique(bed$name) = "ZNF274", etc.)
+    # R: plotBed(..., type="circles", color=bed$color, row="given",
+    #             rowlabels=unique(bed$name), rowlabelcol=unique(bed$color),
+    #             rowlabelcex=0.75, plotbg="#F2F2F2")
+    # + zoomsregion(region=zoomregion, extend=c(0.5,.22), wideextend=0.15, offsets=c(0.0,0))
+    # + zoombox(zoomregion = zoomregion)
     chrom = "chr15"; cs = 72800000; ce = 73100000
+    zoomregion = (72998000, 73020000)
     mask_k = (sf["chrom"] == chrom) & (sf["start"] < ce) & (sf["end"] > cs)
     sf_filt = sf[mask_k].reset_index(drop=True)
     if len(sf_filt) > 0:
-        # R uses maptocolors(row, SushiColors(6)) to map row -> color
-        unique_rows = sorted(sf_filt["row"].unique())
+        # R uses bed$color = maptocolors(bed$row, SushiColors(6))
+        # Order: sorted rows 1-11, color = SushiColors(6)(11)[i]
+        unique_rows = sorted([int(r) for r in sf_filt["row"].unique()])
         row_to_color = {r: sushi.SushiColors(6)(len(unique_rows))[i]
                         for i, r in enumerate(unique_rows)}
-        sf_colors = [row_to_color[r] for r in sf_filt["row"]]
-        # R's actual factor names (ZNF274, ZNF143, ...) - hardcode to match
-        factor_names = ["ZNF274", "ZNF143", "SP1", "REST", "RAD21", "POLR2A",
-                        "MYC", "MAZ", "JUND", "EP300", "CTCF"]
-        row_labels = [factor_names[r - 1] if r - 1 < len(factor_names) else f"row_{r}"
-                      for r in unique_rows]
+        sf_colors = [row_to_color[int(r)] for r in sf_filt["row"]]
+        # R unique(bed$name) preserves first-appearance order. In the bed file
+        # the order is row 1, 2, 3, ...; the names are unique per row.
+        # Build a {row -> name} mapping from the first row entry.
+        first_per_row = (sf_filt.drop_duplicates("row")
+                                 .set_index("row")["name"].to_dict())
+        row_labels = [first_per_row[r] for r in unique_rows]
+        row_label_colors = [row_to_color[r] for r in unique_rows]
         plotBed(ax, sf_filt, chrom, cs, ce, type="circles",
                 rownumber=sf_filt["row"].tolist(), row="given",
                 color=sf_colors, plotbg="#F2F2F2",
                 rowlabels=row_labels,
-                rowlabelcol=[row_to_color[r] for r in unique_rows],
-                rowlabelcex=0.6)
+                rowlabelcol=row_label_colors,
+                rowlabelcex=0.75)
     else:
         print("K: no data after filter")
     labelgenome(ax, chrom, cs, ce, n=3, scale="Mb")
+    # R zoomsregion(zoomregion, extend=c(0.5,.22), wideextend=0.15, offsets=c(0.0,0))
+    from sushi import zoomsregion, zoombox
+    zoomsregion(ax, region=zoomregion, chrom=chrom,
+                extend=(0.5, 0.22), wideextend=0.15, offsets=(0.0, 0))
+    # R zoombox(zoomregion = zoomregion) draws 3-sided box around zoomregion
+    zoombox(ax, zoomregion=zoomregion, lwd=0.5, lty="--")
     panel(ax, "K", "ChIP-seq")
     save(fig, "K_chipseq_circles")
     print("K done")
@@ -345,11 +365,12 @@ try:
         genes_n["types"] = "exon"
     else:
         genes_n = genes
+    # R default color: navy (matplotlib named color)
     plotGenes(ax, genes_n, "chr15", 72998000, 73020000,
               types=genes_n["types"].tolist(),
               maxrows=1, bheight=0.15, plotgenetype="arrow",
               bentline=False, labeloffset=1, fontsize=1.2,
-              arrowlength=0.01, col="#1F77B4")
+              arrowlength=0.01, col="navy")
     labelgenome(ax, "chr15", 72998000, 73020000, n=3, scale="Mb")
     # R default zoombox() draws 3-sided box around panel (no zoom region arg)
     from sushi import zoombox

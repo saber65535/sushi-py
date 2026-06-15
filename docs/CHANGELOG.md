@@ -456,4 +456,26 @@ exceeds the exon width (121-164 bp), causing R's polygon to self-
 intersect into a "X" shape. This is an R-rendering-side issue, not
 a port bug. The Python port's Panel N is now visually 1:1 with R.
 
-### Fixed in v0.1.22 (2026-06-14)
+### Fixed in v0.1.22 (2026-06-14)### Fixed in v0.1.25 (2026-06-14)
+
+User feedback: "panel F, 还是有"问题, panel K也有问题, panel N基因还是太丑了"
+
+Round 4 of panel-by-panel visual diff against R Figure_1.pdf ground truth
+(this time with the user's "如果你有读不了的图, 跟我要" reminder):
+
+1. **Panel F**: legend now INSIDE panel top-right (matching R PaperFigure.R),
+   using colored-border text boxes instead of ax.legend() which placed the
+   legend outside. R renders it as 2 small rectangles with text in the upper
+   right inside the panel; my port now matches.
+
+2. **Panel K**: row labels now use the bed file's actual `name` and `color`
+   columns (CTCF black, ZNF274 yellow, etc., as assigned by R's
+   `maptocolors(row, SushiColors(6))`). R's `unique(bed$name)` preserves
+   first-appearance order which corresponds to rows 1-11. Fixed dict-key
+   bug where `int(row)` was being compared against `row` from the data
+   without the cast.
+
+3. **Panel N**: color changed to `navy` (R's default, matches R real output
+   in the 8x zoomed Figure_1.pdf crop).
+
+### Fixed in v0.1.24 (2026-06-14)

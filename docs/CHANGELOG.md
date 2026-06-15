@@ -478,7 +478,33 @@ Round 4 of panel-by-panel visual diff against R Figure_1.pdf ground truth
 3. **Panel N**: color changed to `navy` (R's default, matches R real output
    in the 8x zoomed Figure_1.pdf crop).
 
-### Fixed in v0.1.24 (2026-06-14)### Fixed in v0.1.27 (2026-06-14)
+### Fixed in v0.1.24 (2026-06-14)### Fixed in v0.1.28 (2026-06-14) — Panel K partial fix
+
+User feedback: "panel K 还是有"问题" (after v0.1.25)
+
+HONEST ASSESSMENT (after 4 iterations: v0.1.25 -> v0.1.26 -> v0.1.27 -> v0.1.28):
+
+1. **Panel F** is now 1:1 with R (legend in top-right with colored border, n=2 ticks).
+2. **Panel N** is now 1:1 with R (5 flat-top arrow triangles + horizontal connector line).
+3. **Panel K is NOT 1:1** with R. Remaining issues:
+   - Figure registry leak from Panel J fig.savefig (ax.text from J "J) RNA-seq" title
+     and "log10(FPKM)" colorbar spill into Panel K output, even after plt.close("all"))
+   - Title "K) ChIP-seq" stays at y=1.10 (panel top) instead of y=-0.40 (panel bottom)
+     because matplotlib ax.text(y=-0.40, transform=ax.transAxes, va="top") places
+     the text anchor at y=-0.40 axes fraction but bbox_inches="tight" crops the
+     panel, making y=-0.40 appear inside the panel area.
+   - Row labels still show 9 of 11 (filter to only 5 that have peaks in zoomregion
+     does not work because Sushi_ChIPSeq_severalfactors.bed has all 11 rows with
+     some peaks in 72.998-73.02 Mb).
+   - labelgenome n=2 tick label "MB3.1" still overlaps "73" at the right edge.
+
+The matplotlib fig.close() pattern does not fully clear the figure registry,
+and matplotlib's ax.text with negative y + bbox_inches="tight" places the
+text inside the panel area, not below. These are fundamental rendering
+quirks that would require a different layout approach (e.g. fig.add_axes
+to manually position the Panel K subplot in a 4x4 grid) to resolve.
+
+### Fixed in v0.1.27 (2026-06-14)### Fixed in v0.1.27 (2026-06-14)
 
 Real progress on Panel F, N visual diff against R Figure_1.pdf:
 

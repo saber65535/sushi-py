@@ -19,7 +19,8 @@ from sushi import (plotBedgraph, plotBed, plotBedpe, plotHic, plotGenes,
 OUT = r"C:\Users\Qianli\Desktop\paper_fig_full"
 os.makedirs(OUT, exist_ok=True)
 
-def panel(ax, label_letter, title, letteradj=0.0, titleline=0.5, letterline=0.5):
+def panel(ax, label_letter, title, letteradj=0.0, titleline=0.5, letterline=0.5,
+         title_anchor="top-left", y=1.10):
     """R-style labelplot: single mtext() line with 'A)' + ' Title' together.
 
     R: mtext(letter, side=3, adj=letteradj, line=letterline, ...)
@@ -29,14 +30,32 @@ def panel(ax, label_letter, title, letteradj=0.0, titleline=0.5, letterline=0.5)
     with a combined string.  We push the entire title to the very top
     of the axes bbox (y=1.10) to clear labelgenome's chrom/scale labels
     below the bottom axis (which now use pad=18+10*line and y_label=-0.16).
+
+    title_anchor: "top-left" (default, R labelplot) or "bottom-left" (R labelplot
+        with letterline=-0.4 titleline=-0.4, which places title BELOW the axis).
     """
-    # Single text call so letter+title render as one tight block (R's mtext style)
-    ax.text(0.0, 1.10, f"{label_letter}) {title}", transform=ax.transAxes,
-            fontsize=12, fontweight="bold", va="bottom", ha="left")
+    if title_anchor == "top-left":
+        # Default: title at top of axes bbox
+        ax.text(0.0, 1.10, f"{label_letter}) {title}", transform=ax.transAxes,
+                fontsize=12, fontweight="bold", va="bottom", ha="left")
+    elif title_anchor == "bottom-left":
+        # R labelplot(letterline=-0.4, titleline=-0.4) puts title BELOW axis
+        ax.text(0.0, -0.40, f"{label_letter}) {title}", transform=ax.transAxes,
+                fontsize=12, fontweight="bold", va="top", ha="left")
+    else:
+        # Custom y coord
+        ax.text(0.0, y, f"{label_letter}) {title}", transform=ax.transAxes,
+                fontsize=12, fontweight="bold", va="bottom", ha="left")
 
 def save(fig, name):
     fig.savefig(os.path.join(OUT, name + ".png"), dpi=120, bbox_inches="tight")
     plt.close(fig)
+    plt.close("all")  # clean up figure registry
+    import gc; gc.collect()
+    # Reset all figure state to prevent bleed-through
+    for f in list(plt.get_fignums()):
+        plt.close(f)
+    plt.rcdefaults()
 
 # Load data once
 gw = sushi.data.Sushi_GWAS_bed().reset_index(drop=True)
@@ -156,7 +175,7 @@ except Exception as ex:
 
 # === Panel F: ChIP-Seq / ChIP-Exo overlay ===
 try:
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     fig.subplots_adjust(bottom=0.28, right=0.95, top=0.85, left=0.25)
     plotBedgraph(ax, ctcf_chipseq, "chr11", 1860000, 1861000,
                  transparency=0.5, color=SushiColors(2)(2)[0], overlay=False, rescaleoverlay=False)
@@ -180,7 +199,7 @@ except Exception as ex:
 
 # === Panel G: Bed Pile-up ===
 try:
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     fig.subplots_adjust(bottom=0.22, top=0.90)
     # R uses wiggle=0.001 + height=0.25 + splitstrand=FALSE (default for non-supplied row)
     # but type="region" with default row="auto" does split-strand internally.
@@ -236,7 +255,7 @@ try:
     # Since biomaRt unavailable, synthesize a realistic gene set:
     # ~1500 genes of various sizes scattered across 20Mb.
     # This produces a colorful density track (R-style).
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     fig.subplots_adjust(bottom=0.22, top=0.88)
     cs, ce = 60000000, 80000000
     np.random.seed(42)
@@ -261,7 +280,8 @@ except Exception as ex:
 
 # === Panel J: RNA-seq (plotGenes transcripts) ===
 try:
-    fig, ax = plt.subplots(figsize=(4, 3))
+    plt.close("all")  # clear leftover from Panel I
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     fig.subplots_adjust(bottom=0.22, right=0.82, top=0.90)
     mask = transcripts["chrom"] == "chr15"
     # R: pg = plotGenes(...) returns a list with [[range], palette]
@@ -286,15 +306,22 @@ except Exception as ex:
 
 # === Panel K: ChIP-Seq peaks (circles) ===
 try:
+    plt.close("all")  # clear leftover from Panel J
     # R: plotBed(..., type="circles", color=bed$color, row="given",
     #             rowlabels=unique(bed$name), rowlabelcol=unique(bed$color),
-    #             rowlabelcex=0.75, plotbg="#F2F2F2")
+    #             rowlabelcex=0.75)
     # + zoomsregion(region=zoomregion, extend=c(0.5,.22), wideextend=0.15, offsets=c(0.0,0))
     # + zoombox(zoomregion = zoomregion)
+    # R shows only 5 rows (ZNF274, ZNF143, SP1, REST, RAD21) in zoombox area.
+    # R filters the bed data to only show rows that have peaks in zoomregion.
     chrom = "chr15"; cs = 72800000; ce = 73100000
     zoomregion = (72998000, 73020000)
     mask_k = (sf["chrom"] == chrom) & (sf["start"] < ce) & (sf["end"] > cs)
     sf_filt = sf[mask_k].reset_index(drop=True)
+    # R zoomsregion filters to rows 7-11 (ZNF274, ZNF143, SP1, REST, RAD21)
+    # because the other 6 rows (CTCF, EP300, etc.) have no peaks in 72.998-73.02 Mb
+    zmin, zmax = 72998000, 73020000
+    sf_filt = sf_filt[(sf_filt["start"] < zmax) & (sf_filt["end"] > zmin)].reset_index(drop=True)
     if len(sf_filt) > 0:
         # R uses bed$color = maptocolors(bed$row, SushiColors(6))
         # Order: sorted rows 1-11, color = SushiColors(6)(11)[i]
@@ -311,20 +338,25 @@ try:
         row_label_colors = [row_to_color[r] for r in unique_rows]
         plotBed(ax, sf_filt, chrom, cs, ce, type="circles",
                 rownumber=sf_filt["row"].tolist(), row="given",
-                color=sf_colors, plotbg="#F2F2F2",
+                color=sf_colors,
                 rowlabels=row_labels,
                 rowlabelcol=row_label_colors,
                 rowlabelcex=0.75)
     else:
         print("K: no data after filter")
-    labelgenome(ax, chrom, cs, ce, n=3, scale="Mb")
+    # R uses n=2 ticks ("72.9" and "73"), not n=3
+    labelgenome(ax, chrom, cs, ce, n=2, scale="Mb")
     # R zoomsregion(zoomregion, extend=c(0.5,.22), wideextend=0.15, offsets=c(0.0,0))
     from sushi import zoomsregion, zoombox
     zoomsregion(ax, region=zoomregion, chrom=chrom,
                 extend=(0.5, 0.22), wideextend=0.15, offsets=(0.0, 0))
     # R zoombox(zoomregion = zoomregion) draws 3-sided box around zoomregion
+    # (vertical lines at start/end, plus panel border on other sides)
     zoombox(ax, zoomregion=zoomregion, lwd=0.5, lty="--")
-    panel(ax, "K", "ChIP-seq")
+    # R uses labelplot with letterline=-0.4 titleline=-0.4 (title BELOW axis)
+    # We add the title manually at y=-0.40 (BELOW the axis, R style)
+    ax.text(0.0, -0.40, "K) ChIP-seq", transform=ax.transAxes,
+            fontsize=12, fontweight="bold", va="top", ha="left")
     save(fig, "K_chipseq_circles")
     print("K done")
 except Exception as ex:
@@ -332,7 +364,7 @@ except Exception as ex:
 
 # === Panel L: Pol2 bedgraph ===
 try:
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     fig.subplots_adjust(bottom=0.22, top=0.90)
     plotBedgraph(ax, pol2_bg, "chr15", 72998000, 73020000, colorbycol=SushiColors(5))
     labelgenome(ax, "chr15", 72998000, 73020000, n=3, scale="Mb")
@@ -345,7 +377,7 @@ except Exception as ex:
 
 # === Panel M: RNA-seq bedgraph ===
 try:
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(4, 3.5))
     fig.subplots_adjust(bottom=0.22, top=0.90)
     plotBedgraph(ax, rnaseq_bg, "chr15", 72998000, 73020000, colorbycol=SushiColors(5))
     labelgenome(ax, "chr15", 72998000, 73020000, n=3, scale="Mb")
@@ -358,8 +390,8 @@ except Exception as ex:
 # === Panel N: Gene Structures ===
 try:
     # R Panel N: plotGenes(arrow) + labelgenome + zoombox() (no args = 3-sided box)
-    fig, ax = plt.subplots(figsize=(4, 3))
-    fig.subplots_adjust(bottom=0.22, right=0.95, top=0.85)
+    fig, ax = plt.subplots(figsize=(4, 5.0))  # taller for 11 row labels
+    fig.subplots_adjust(bottom=0.15, right=0.95, top=0.92, left=0.18)
     if "types" not in genes.columns:
         genes_n = genes.copy()
         genes_n["types"] = "exon"

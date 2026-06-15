@@ -1,0 +1,77 @@
+{
+  "R Ex1  plotBedgraph(no labelgenome)": [
+    "Sushi-006",
+    211,
+    "py_ex01_v1_no_labelgenome"
+  ],
+  "R Ex2  plotBedgraph + labelgenome": [
+    "Sushi-008",
+    226,
+    "py_ex01 (current ex01)"
+  ],
+  "R Ex3  plotBedgraph + y-axis Read Depth": [
+    "Sushi-010",
+    245,
+    "py_ex01 + y-axis"
+  ],
+  "R Ex4  par(mfrow=2,1) 2 bedgraphs": [
+    "Sushi-011",
+    259,
+    "py_ex02-like stacked"
+  ],
+  "R Ex5  + legend toparright": [
+    "Sushi-013",
+    282,
+    "py_ex02 + legend"
+  ],
+  "R Ex6  par mfrow 2 track flip": [
+    "Sushi-016",
+    324,
+    "py_ex03 like"
+  ],
+  "R Ex7  par mfrow with flip=TRUE": [
+    "Sushi-018",
+    359,
+    "py_ex03"
+  ],
+  "R Ex8  plotHic SushiColors(7)": [
+    "Sushi-020",
+    405,
+    "py_ex04"
+  ],
+  "R Ex9  plotHic flip=TRUE topo.colors": [
+    "Sushi-021",
+    427,
+    "py_ex04_flip"
+  ],
+  "R Ex10 plotBedpe 5C loops + 3-color legend": [
+    "Sushi-023",
+    456,
+    "py_ex05"
+  ],
+  "R Ex11 plotBedpe 5C lines flip": [
+    "Sushi-024",
+    476,
+    "py_ex06"
+  ],
+  "R Ex12 plotBed Pol2 region + legend": [
+    "Sushi-026",
+    502,
+    "py_ex07"
+  ],
+  "R Ex13 plotBed Pol2 splitstrand": [
+    "Sushi-027",
+    521,
+    "py_ex09"
+  ],
+  "R Ex14 plotBed severalfactors circles + mtext": [
+    "Sushi-029",
+    550,
+    "py_ex10"
+  ],
+  "R Ex15 plotBed severalfactors region + mtext": [
+    "Sushi-032",
+    610,
+    "py_ex11"
+  ]
+}

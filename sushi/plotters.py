@@ -295,6 +295,9 @@ def plotBed(ax, beddata, chrom: str, chromstart: int, chromend: int,
         colorby = list(colorby)[:len(df)]
     if rownumber is not None and len(rownumber) > len(df):
         rownumber = list(rownumber)[:len(df)]
+    # Truncate color list to match filtered df length (v0.1.30 fix)
+    if isinstance(color, list) and len(color) > len(df):
+        color = list(color)[:len(df)]
 
     if colorby is not None:
         df["plotcolor"] = maptocolors([float(c) for c in colorby], colorbycol,
@@ -687,6 +690,19 @@ def plotHic(ax, hicdata, chrom: str, chromstart: int, chromend: int,
     """Plot a Hi-C interaction matrix as a lower-triangle heatmap."""
     if palette is None:
         palette = SushiColors(7)
+    # Handle dict format (from sushi.data.Sushi_HiC_matrix loader)
+    if isinstance(hicdata, dict):
+        hicdata = hicdata["matrix"]
+        # R lower-triangular storage may make matrix rectangular.
+        if hasattr(hicdata, "shape") and len(hicdata.shape) == 2:
+            n_rows, n_cols = hicdata.shape
+            if n_rows != n_cols:
+                # Pad to square with NaN
+                full = _np.full((n_rows, n_rows), _np.nan)
+                for i in range(n_rows):
+                    for j in range(i, n_cols):
+                        full[i, j] = hicdata[i, j]
+                hicdata = full
     if hasattr(hicdata, "index") and hasattr(hicdata, "columns"):
         rows = np.asarray(hicdata.index)
         cols = np.asarray(hicdata.columns)
@@ -709,6 +725,20 @@ def plotHic(ax, hicdata, chrom: str, chromstart: int, chromend: int,
     # If hicregion is rectangular (e.g. R's lower-triangular storage where
     # the last row/col is shorter), use the smallest dimension for nbins so
     # that we never index out of bounds. R's plotHic handles this naturally.
+    # Guard against empty hicregion (0x0)
+    if hicregion.size == 0:
+        if not flip:
+            ax.set_xlim(chromstart, chromend)
+            ax.set_ylim(0, max_y)
+        else:
+            ax.set_xlim(chromstart, chromend)
+            ax.set_ylim(-max_y, 0)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        return [float(zrange[0]) if zrange else 0.0,
+                float(zrange[1]) if zrange else 1.0], palette
     n_rows, n_cols = hicregion.shape
     nbins = min(n_rows, n_cols)
     stepsize = abs(chromstart - chromend) / (2 * nbins) if nbins else 0

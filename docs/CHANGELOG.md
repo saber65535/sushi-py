@@ -478,7 +478,43 @@ Round 4 of panel-by-panel visual diff against R Figure_1.pdf ground truth
 3. **Panel N**: color changed to `navy` (R's default, matches R real output
    in the 8x zoomed Figure_1.pdf crop).
 
-### Fixed in v0.1.24 (2026-06-14)### Fixed in v0.1.30 (2026-06-15)
+### Fixed in v0.1.24 (2026-06-14)### Fixed in v0.1.31 (2026-06-15) — R real vignette 1:1 reproduction
+
+User task (option A): "在师大服务器跑 R vignette 渲染 12 张 R example 图, 跟我 Python 1:1 对比"
+
+1. **Ran R Sushi vignette on 师大服务器 (R 4.3.3 + Sushi 1.32.0)**:
+   - Copied Sushi.Rnw to /datapool/life-zhanghk/qianli/39-Sushi_Python/R_vignette_render/
+   - Ran `Rscript -e 'Sweave("Sushi.Rnw")'` -> 14 Sushi-XXX.pdf rendered
+     (chunk 33 failed at biomaRt since Sushi vignette needs internet)
+   - SCP\'ed to local: C:\\Users\\Qianli\\Desktop\\Sushi_R_real_render\\Sushi-XXX.pdf
+   - Rendered to 200dpi PNG: Sushi_R_real_render_png/
+
+2. **Created R_real_examples/R_Ex1.py through R_Ex4_to_Ex15.py** (12 of 14
+   R examples reproduced 1:1 in Python using sushi-py):
+
+3. **Found and fixed 3 real bugs in sushi-py during 1:1 reproduction**:
+   - **SushiColors(2)(2)[N] indexing**: R uses 1-based, Python is 0-based.
+     R vignette R_Ex4 uses SushiColors(2)(2)[1] (blue) and [2] (red) but
+     in my port [1] is red and [2] was out of range. Fixed by switching
+     to 0-based: [0]=blue, [1]=red in Python.
+   - **plotHic dict support**: sushi.data.Sushi_HiC_matrix() returns
+     a dict {matrix, positions, col_positions} but plotHic only checked
+     for DataFrame (hasattr index+columns) or ndarray. Added dict handler.
+   - **plotBed color list length mismatch**: when bed is filtered to a
+     range, the user-passed color list stays at full length (130) but df
+     is shorter (113), causing `df["plotcolor"] = color` to fail. Added
+     color list truncation to match filtered df (same fix as rownumber).
+
+4. **1:1 R-vs-Python comparison (11 examples)**:
+   - Saved side-by-side: C:\\Users\\Qianli\\Desktop\\R vs_Py_1to1_*.png
+   - Ex1-3 (plotBedgraph series): 1:1 (gradient spike, labelgenome, y-axis)
+   - Ex4-5 (overlay + legend): 1:1
+   - Ex8 (plotHic SushiColors7 + legend): 1:1
+   - Ex10 (5C loops + 3-color legend): nearly 1:1 (R pretty() vs matplotlib
+     MaxNLocator gives slightly different tick positions)
+   - Ex11-15 (plotBedpe lines, plotBed, plotBed severalfactors): 1:1
+
+### Fixed in v0.1.30 (2026-06-15)### Fixed in v0.1.30 (2026-06-15)
 
 User task: "读 Sushi.docx, 看 R 脚本 + 例图, 用 Python 跑一样的图"
 

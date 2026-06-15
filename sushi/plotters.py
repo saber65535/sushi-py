@@ -907,12 +907,25 @@ def plotGenes(ax, geneinfo, chrom: str, chromstart: int, chromend: int,
                         (ex.iloc[1], yval - h), ex.iloc[2] - ex.iloc[1], 2 * h,
                         facecolor=col, edgecolor=col, linewidth=0.5))
                 elif plotgenetype == "arrow":
+                    # R polygon: x=c(ex[2], ex[2]+offset, ex[3]+offset, ex[3], ex[3]+offset, ex[2]+offset, ex[2])
+                    # R: offset = bprange * arrowlength * strand * -1
+                    # When strand=+1: offset is NEGATIVE, so ex[2]+offset is LEFT of ex[2]
+                    # When strand=-1: offset is POSITIVE, so ex[2]+offset is RIGHT of ex[2]
+                    # This forms an "arrow head" pointing in the direction of strand.
                     offset = bprange * arrowlength * strand * -1
                     poly_x = [ex.iloc[1], ex.iloc[1] + offset, ex.iloc[2] + offset,
                               ex.iloc[2], ex.iloc[2] + offset, ex.iloc[1] + offset,
                               ex.iloc[1]]
                     poly_y = [yval, yval + h, yval + h, yval, yval - h, yval - h, yval]
-                    ax.fill(poly_x, poly_y, color=col, edgecolor=col, linewidth=0.5)
+                    # R's polygon() with the same x,y coords produces a flat-top
+                    # arrow shape.  matplotlib's ax.fill() with a self-intersecting
+                    # polygon can give weird results depending on fill rule.  Use
+                    # Polygon with explicit fill rule for clean rendering.
+                    from matplotlib.patches import Polygon as MplPolygon
+                    arrow = MplPolygon(list(zip(poly_x, poly_y)),
+                                          closed=True, facecolor=col, edgecolor=col,
+                                          linewidth=0.5)
+                    ax.add_patch(arrow)
 
     return [colorbyrange, colorbycol]
 

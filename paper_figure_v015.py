@@ -19,11 +19,20 @@ from sushi import (plotBedgraph, plotBed, plotBedpe, plotHic, plotGenes,
 OUT = r"C:\Users\Qianli\Desktop\paper_fig_full"
 os.makedirs(OUT, exist_ok=True)
 
-def panel(ax, label_letter, title):
-    ax.text(0.01, 1.04, label_letter + ")", transform=ax.transAxes,
-            fontsize=12, fontweight="bold", va="bottom")
-    ax.text(0.05, 1.04, " " + title, transform=ax.transAxes,
-            fontsize=12, fontweight="bold", va="bottom")
+def panel(ax, label_letter, title, letteradj=0.0, titleline=0.5, letterline=0.5):
+    """R-style labelplot: single mtext() line with 'A)' + ' Title' together.
+
+    R: mtext(letter, side=3, adj=letteradj, line=letterline, ...)
+        mtext(title, side=3, adj=titleadj, line=titleline, ...)
+
+    For "A) Title" rendered as a single tight block, we use one ax.text
+    with a combined string.  We push the entire title to the very top
+    of the axes bbox (y=1.10) to clear labelgenome's chrom/scale labels
+    below the bottom axis (which now use pad=18+10*line and y_label=-0.16).
+    """
+    # Single text call so letter+title render as one tight block (R's mtext style)
+    ax.text(0.0, 1.10, f"{label_letter}) {title}", transform=ax.transAxes,
+            fontsize=12, fontweight="bold", va="bottom", ha="left")
 
 def save(fig, name):
     fig.savefig(os.path.join(OUT, name + ".png"), dpi=120, bbox_inches="tight")
@@ -328,44 +337,23 @@ except Exception as ex:
 
 # === Panel N: Gene Structures ===
 try:
+    # R Panel N: plotGenes(arrow) + labelgenome + zoombox() (no args = 3-sided box)
     fig, ax = plt.subplots(figsize=(4, 3))
-    fig.subplots_adjust(bottom=0.22, top=0.90)
-    # genes.bed has 6 cols (chrom, start, stop, gene, score, strand), no "type"
-    # R plotGenes with plotgenetype="arrow" doesn't need types=
-    # Direct drawing: 5 boxes + bent line + arrow ABOVE boxes (R Panel N structure).
-    # Sushi_genes.bed is sparse (5 entries in 22kb), so we draw directly.
-    cs_n, ce_n = 72998000, 73020000
-    n_exons = 5
-    np.random.seed(42)
-    exon_starts = np.linspace(cs_n + 2000, ce_n - 2000, n_exons).astype(int)
-    exon_w = 1000  # 1kb wide exons
-    y_box = 0.35  # boxes at lower y
-    box_h = 0.25
-    y_bent = y_box + box_h / 2  # bent line at top of boxes
-    # Draw bent line first (zorder low)
-    xs_bent = []
-    for i in range(n_exons - 1):
-        x_a = exon_starts[i] + exon_w
-        x_b = exon_starts[i + 1]
-        xs_bent.extend([x_a, x_b, x_b])
-    xs_bent = np.array(xs_bent)
-    ys_bent = np.tile([y_bent, y_bent, y_bent - 0.05], n_exons - 1)
-    ax.plot(xs_bent, ys_bent, color="#1F77B4", linewidth=1.0, zorder=1)
-    # Draw 5 exon boxes
-    for s in exon_starts:
-        ax.add_patch(plt.Rectangle((s, y_box), exon_w, box_h,
-                                    facecolor="#1F77B4", edgecolor="#1F77B4", linewidth=0.5, zorder=2))
-    # Draw arrow ← ABOVE boxes (R convention)
-    arrow_y = y_bent + 0.15
-    arrow_x_start = cs_n + 800
-    arrow_x_end = cs_n + 1800
-    ax.annotate("", xy=(arrow_x_start, arrow_y), xytext=(arrow_x_end, arrow_y),
-                arrowprops=dict(arrowstyle="->", lw=1.5, color="#1F77B4"))
-    ax.text(arrow_x_start - 100, arrow_y, "COX5A", ha="right", va="center",
-            fontsize=10, fontweight="bold", color="#1F77B4")
-    ax.set_xlim(cs_n, ce_n)
-    ax.set_ylim(0, 0.7)
-    labelgenome(ax, "chr15", cs_n, ce_n, n=3, scale="Mb")
+    fig.subplots_adjust(bottom=0.22, right=0.95, top=0.85)
+    if "types" not in genes.columns:
+        genes_n = genes.copy()
+        genes_n["types"] = "exon"
+    else:
+        genes_n = genes
+    plotGenes(ax, genes_n, "chr15", 72998000, 73020000,
+              types=genes_n["types"].tolist(),
+              maxrows=1, bheight=0.15, plotgenetype="arrow",
+              bentline=False, labeloffset=1, fontsize=1.2,
+              arrowlength=0.01, col="#1F77B4")
+    labelgenome(ax, "chr15", 72998000, 73020000, n=3, scale="Mb")
+    # R default zoombox() draws 3-sided box around panel (no zoom region arg)
+    from sushi import zoombox
+    zoombox(ax, lwd=0.5, lty="--")
     panel(ax, "N", "Gene Structures")
     save(fig, "N_gene_structures")
     print("N done")

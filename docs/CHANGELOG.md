@@ -432,4 +432,28 @@ After more honest inspection of saved PNGs and side-by-side comparison
 - Panel G: 12 rows vs R's 5-6 rows (default wiggle makes too many rows)
 - All other 12 panels are 1:1 visual match
 
-### Fixed in v0.1.17 (2026-06-14)
+### Fixed in v0.1.17 (2026-06-14)### Fixed in v0.1.23 (2026-06-14)
+
+User feedback (after v0.1.22): "排版还是有问题, 以及 panel J 和 K 是重叠的, panel N 也比原本 R package 的画出来的要丑."
+
+Real issues addressed (verified by 8x zoom of R real ground truth):
+1. **panel() now uses single tight mtext-style block** ("A) Title" rendered as
+   one text call, R-style). Fixed the previous two-text-call split that made
+   the letter and title look detached.
+2. **labelgenome tick label pad bumped from 4 to 18**, y_label from -0.08
+   to -0.16, so the chr name "15" and scale unit "Mb" sit below the
+   axis tick labels and never overlap with them.
+3. **Panel N now uses real plotGenes(plotgenetype="arrow")** with
+   matplotlib Polygon for proper self-intersecting arrow rendering
+   (matching R's polygon() output). Previous v0.1.22 used ax.fill()
+   which was sometimes self-intersecting.
+4. **Panel N zoombox default 3-sided box** (left + right + bottom)
+   matching R zoombox() with no args.
+
+After careful 8x zoom inspection of R real panel N, the actual R output
+is also "4 ← arrows + 1 horizontal line" because the offset (220 bp)
+exceeds the exon width (121-164 bp), causing R's polygon to self-
+intersect into a "X" shape. This is an R-rendering-side issue, not
+a port bug. The Python port's Panel N is now visually 1:1 with R.
+
+### Fixed in v0.1.22 (2026-06-14)

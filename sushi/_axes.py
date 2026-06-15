@@ -102,7 +102,7 @@ def labelgenome(ax, chrom: str, chromstart: int, chromend: int,
     ax.xaxis.set_major_locator(FixedLocator(tick_positions))
     ax.xaxis.set_major_formatter(FuncFormatter(_fmt))
     ax.tick_params(axis="x", which="major", direction="out", length=3,
-                   labelsize=8 * scalecex, pad=4 + 10 * line)
+                   labelsize=8 * scalecex, pad=18 + 10 * line)  # bumped from 4 to leave room for chrom/scale labels
 
     # chrom name + scale name
     # matplotlib: tick_params already moved the tick labels below the axis.
@@ -110,9 +110,23 @@ def labelgenome(ax, chrom: str, chromstart: int, chromend: int,
     # Place the chrom/scale labels just below the axis. Note that to
     # render outside the axes bbox the caller must pass
     # ``fig.subplots_adjust(bottom=0.18)`` (or similar) before savefig.
+    # In R, labelgenome uses axis() with `line=0.18` to place tick labels,
+    # then mtext places the chromosome name and scale unit with their own
+    # `line=` arguments.  In matplotlib, the cleanest analogue is to
+    # use figure.text() anchored in figure-fraction coords, with the
+    # caller responsible for having already set up the bottom/top margins
+    # via subplots_adjust.  We position the chrom name at the LEFT-bottom
+    # corner and the scale unit at the RIGHT-bottom corner, with a small
+    # offset below the axis tick labels.
+    # In practice, since the figure has subplots_adjust already, we use
+    # ax.annotate with xycoords='axes fraction' and y close to 0 but
+    # shifted enough to be BELOW the tick labels (which sit at y=0).
+    # We rely on annotation_clip=False so the text can extend below the
+    # axes bounding box.
     if side == 1:
-        y_label = -0.12 - 0.025 * chromline
-        y_scale = -0.12 - 0.025 * scaleline
+        # Place labels just below the axis (R default line=.5)
+        y_label = -0.16
+        y_scale = -0.16
     else:
         y_label = 1.05 + 0.025 * chromline
         y_scale = 1.05 + 0.025 * scaleline
@@ -123,12 +137,12 @@ def labelgenome(ax, chrom: str, chromstart: int, chromend: int,
     ax.annotate(chrom.replace("chr", ""),
                 xy=(chromadjust, y_label), xycoords="axes fraction",
                 ha="left", va="top",
-                fontweight=weight, fontsize=10 * chromcex,
+                fontweight=weight, fontsize=8 * chromcex,
                 annotation_clip=False)
     ax.annotate(scale,
                 xy=(scaleadjust, y_scale), xycoords="axes fraction",
                 ha="right", va="top",
-                fontweight=weight_s, fontsize=10 * scalecex,
+                fontweight=weight_s, fontsize=8 * scalecex,
                 annotation_clip=False)
 
 

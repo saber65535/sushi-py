@@ -228,7 +228,7 @@ Python:
 ```python
 bed = sushi.data.Sushi_ChIPSeq_pol2_bed()
 bed = bed[bed["chrom"] == "chr11"].reset_index(drop=True)   # pre-filter
-cb = bed["strand"].map({"+": 1, "-": -1}).tolist()
+cb = sushi.convertstrandinfo(bed["strand"].tolist())  # strand is numeric (-1/1) in the data
 fig, ax = plt.subplots(figsize=(10, 3))
 fig.subplots_adjust(bottom=0.22, left=0.12)
 plotBed(ax, bed, "chr11", 2281200, 2282200, colorby=cb,

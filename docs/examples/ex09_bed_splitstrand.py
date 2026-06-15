@@ -9,7 +9,9 @@ bed_full = sushi.data.Sushi_ChIPSeq_pol2_bed()
 bed = bed_full[(bed_full["chrom"] == "chr11") &
                ((bed_full["start"] > 2281200) & (bed_full["start"] < 2282200) |
                 (bed_full["end"] > 2281200) & (bed_full["end"] < 2282200))].reset_index(drop=True)
-cb = bed["strand"].map({"+": 1, "-": -1}).tolist()
+# strand is stored numeric (-1.0/1.0) in the example data; convertstrandinfo
+# returns -1/1 for both numeric and "+"/"-" string input.
+cb = sushi.convertstrandinfo(bed["strand"].tolist())
 
 fig, ax = plt.subplots(figsize=(10, 5))
 fig.subplots_adjust(bottom=0.22, left=0.12)

@@ -220,13 +220,16 @@ def plotBedgraph(ax, signal, chrom: str, chromstart: int, chromend: int,
                 color_idx = min(j, len(bgcol) - 1)
                 ax.fill(xs + [xs[0]], [ybottom, ybottom, ytop, ytop, ybottom],
                         color=bgcol[color_idx], linewidth=0, edgecolor="none")
-        # Outline on top
-        starts = signaltrack[:, 0]
-        stops = signaltrack[:, 1]
-        values = signaltrack[:, 2]
-        outline_x = np.concatenate([starts, [stops[-1]]])
-        outline_y = np.concatenate([values, [values[-1]]])
-        ax.plot(outline_x, outline_y, color=linecolor, linewidth=lwd, clip_on=False)
+        # NOTE: R's colorbycol path draws rect(..., border=bgcol) — i.e. each
+        # rectangle's border matches its own gradient band color — and draws
+        # NO separate outline line on top. The earlier Python implementation
+        # drew an extra ax.plot(outline, color=linecolor) here, where
+        # linecolor defaults to `color` (blue). On dense, sub-pixel-width
+        # bedGraph data that solid blue line traced over every bin and
+        # visually dominated the panel, hiding the gradient entirely (the
+        # panel looked solid blue instead of black->blue->red->orange like the
+        # R reference). Removing it matches R/plotBedgraph.R, which never
+        # overlays a contrasting outline in the gradient path.
 
     if addscale:
         ax.text(1.0, 1.02, f"{range_[0]}-{range_[1]}",
@@ -698,7 +701,7 @@ def plotHic(ax, hicdata, chrom: str, chromstart: int, chromend: int,
             n_rows, n_cols = hicdata.shape
             if n_rows != n_cols:
                 # Pad to square with NaN
-                full = _np.full((n_rows, n_rows), _np.nan)
+                full = np.full((n_rows, n_rows), np.nan)
                 for i in range(n_rows):
                     for j in range(i, n_cols):
                         full[i, j] = hicdata[i, j]
@@ -710,12 +713,12 @@ def plotHic(ax, hicdata, chrom: str, chromstart: int, chromend: int,
         # pad with NaN to make it square before any further processing.
         if len(rows) != len(cols):
             n_rows, n_cols = hicdata.shape
-            full = _np.full((n_rows, n_rows), _np.nan)
+            full = np.full((n_rows, n_rows), np.nan)
             for i in range(n_rows):
                 for j in range(i, n_cols):
                     full[i, j] = hicdata.iloc[i, j]
             cols = rows  # use rows for both axes
-            hicdata = __import__("pandas").DataFrame(full, index=rows, columns=rows)
+            hicdata = pd.DataFrame(full, index=rows, columns=rows)
         rows_mask = (rows >= chromstart) & (rows <= chromend)
         cols_mask = (cols >= chromstart) & (cols <= chromend)
         hicregion = hicdata.iloc[rows_mask, cols_mask].values
@@ -981,7 +984,19 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
         else:
             pvalues = df.iloc[:, 1].values
     pvalues = np.asarray(pvalues, dtype=float)
-    neglog_p = -np.log10(pvalues)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        neglog_p = -np.log10(pvalues)
+    # p-value of exactly 0 gives -log10(0) = +inf, which makes set_ylim(0, inf)
+    # raise "Axis limits cannot be NaN or Inf". Replace non-finite values with
+    # NaN so they are ignored by nanmax (and not plotted as a point at inf).
+    neglog_p = np.where(np.isfinite(neglog_p), neglog_p, np.nan)
+
+    def _safe_ymax(arr):
+        """Finite, strictly-positive upper y-limit for the Manhattan axis."""
+        if arr.size == 0 or np.all(np.isnan(arr)):
+            return 1.0
+        top = float(np.nanmax(arr))
+        return top if top > 0 else 1.0
 
     if genome is not None:
         co = chromOffsets(genome, space)
@@ -1014,7 +1029,7 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
                    c=[colors[i - 1] for i in co_numbers],
                    s=20, edgecolors="none", **plot_kwargs)
         ax.set_xlim(0, float(co["stop"].max()) + spacer)
-        ax.set_ylim(0, float(np.nanmax(neglog_p)) * ymax)
+        ax.set_ylim(0, _safe_ymax(neglog_p) * ymax)
         # R Manhattan adds chr number labels at the center of each chr.
         # We use the cumulative chromOffsets start/stop to position them.
         for i, row in co.iterrows():
@@ -1056,7 +1071,7 @@ def plotManhattan(ax, bedfile, pvalues=None, chrom=None, chromstart=None,
                    c=col if not callable(col) else col(len(df)),
                    s=20, edgecolors="none", **plot_kwargs)
         ax.set_xlim(chromstart, chromend)
-        ax.set_ylim(0, float(np.nanmax(neglog_p)) * ymax)
+        ax.set_ylim(0, _safe_ymax(neglog_p) * ymax)
     # Note: R Manhattan examples also add mtext("chromosome", side=1)
     # and mtext("log10(P)", side=2). These are vignette-level additions,
     # not core plotManhattan behavior.

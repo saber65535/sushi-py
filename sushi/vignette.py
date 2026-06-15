@@ -142,7 +142,11 @@ def _filter_bed_by_region(bed, chrom, chromstart, chromend):
 def ex07_bed_region():
     bed_full = sushi.data.Sushi_ChIPSeq_pol2_bed()
     bed = _filter_bed_by_region(bed_full, "chr11", 2281200, 2282200)
-    cb = bed["strand"].map({"+": 1, "-": -1}).tolist() if len(bed) > 0 else []
+    # NOTE: the example data stores strand as numeric -1.0/1.0 (not "+"/"-"),
+    # so a literal .map({"+":1,"-":-1}) yields all-NaN and every element ends
+    # up the same color. convertstrandinfo handles both numeric and string
+    # strand input, returning -1/1 either way.
+    cb = sushi.convertstrandinfo(bed["strand"].tolist()) if len(bed) > 0 else []
     fig, ax = plt.subplots(figsize=(10, 3)); fig.subplots_adjust(bottom=0.22, left=0.12)
     plotBed(ax, bed, "chr11", 2281200, 2282200, colorby=cb, colorbycol=SushiColors(2), row="auto", wiggle=0.001)
     labelgenome(ax, "chr11", 2281200, 2282200, n=2, scale="Kb", side=1)
@@ -152,7 +156,11 @@ def ex07_bed_region():
 def ex08_bed_circles():
     bed_full = sushi.data.Sushi_ChIPSeq_pol2_bed()
     bed = _filter_bed_by_region(bed_full, "chr11", 2281200, 2282200)
-    cb = bed["strand"].map({"+": 1, "-": -1}).tolist() if len(bed) > 0 else []
+    # NOTE: the example data stores strand as numeric -1.0/1.0 (not "+"/"-"),
+    # so a literal .map({"+":1,"-":-1}) yields all-NaN and every element ends
+    # up the same color. convertstrandinfo handles both numeric and string
+    # strand input, returning -1/1 either way.
+    cb = sushi.convertstrandinfo(bed["strand"].tolist()) if len(bed) > 0 else []
     fig, ax = plt.subplots(figsize=(10, 3)); fig.subplots_adjust(bottom=0.22, left=0.12)
     plotBed(ax, bed, "chr11", 2281200, 2282200, type="circles", colorby=cb, colorbycol=SushiColors(2), row="auto", wiggle=0.001)
     labelgenome(ax, "chr11", 2281200, 2282200, n=2, scale="Kb", side=1)
@@ -162,7 +170,11 @@ def ex08_bed_circles():
 def ex09_bed_splitstrand():
     bed_full = sushi.data.Sushi_ChIPSeq_pol2_bed()
     bed = _filter_bed_by_region(bed_full, "chr11", 2281200, 2282200)
-    cb = bed["strand"].map({"+": 1, "-": -1}).tolist() if len(bed) > 0 else []
+    # NOTE: the example data stores strand as numeric -1.0/1.0 (not "+"/"-"),
+    # so a literal .map({"+":1,"-":-1}) yields all-NaN and every element ends
+    # up the same color. convertstrandinfo handles both numeric and string
+    # strand input, returning -1/1 either way.
+    cb = sushi.convertstrandinfo(bed["strand"].tolist()) if len(bed) > 0 else []
     fig, ax = plt.subplots(figsize=(10, 3)); fig.subplots_adjust(bottom=0.22, left=0.12)
     plotBed(ax, bed, "chr11", 2281200, 2282200, colorby=cb, colorbycol=SushiColors(2), row="auto", splitstrand=True, wiggle=0.001)
     labelgenome(ax, "chr11", 2281200, 2282200, n=2, scale="Kb", side=1)

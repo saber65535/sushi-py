@@ -194,6 +194,19 @@ def maptocolors(vec, col, num: int = 100,
     Callers that pass `range=...` need to be updated to `rng=...`.
     """
     arr = np.asarray(vec, dtype=float)
+    nan_mask = np.isnan(arr)
+    if nan_mask.all():
+        # Entire input is NaN (e.g. a colorby column that failed to parse).
+        # Returning the first palette color for every element matches the old
+        # behaviour but without the "All-NaN slice encountered" RuntimeWarning
+        # that np.nanmin/np.nanmax raise on an all-NaN array.
+        if callable(col):
+            first = col(1)[0]
+        elif isinstance(col, (list, tuple)) and len(col) > 0:
+            first = col[0]
+        else:
+            first = "#000000"
+        return [first] * len(arr)
     if rng is not None:
         arr = np.where(arr < rng[0], rng[0], arr)
         arr = np.where(arr > rng[1], rng[1], arr)
@@ -226,6 +239,11 @@ def maptocolors(vec, col, num: int = 100,
     edges = np.concatenate([[-np.inf], breaks, [np.inf]])
     idx = np.digitize(arr, edges) - 1
     idx = np.clip(idx, 0, len(palette) - 1)
+    # np.digitize sends NaN to the top bin; force any remaining NaN entries to
+    # the first palette color instead so a stray NaN doesn't masquerade as a
+    # max-valued (warm) color.
+    if nan_mask.any():
+        idx = np.where(nan_mask, 0, idx)
     return [palette[int(i)] for i in idx]
 
 

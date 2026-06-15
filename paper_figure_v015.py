@@ -5,7 +5,10 @@ Reproduces ALL 14 panels (A-N) that make up Figure_1.pdf.
 """
 import os
 import sys, os, traceback
-sys.path.insert(0, r"C:\Users\Qianli\Desktop\Sushi_Python_Version")
+# Make the sushi package importable regardless of where this script is run
+# from. (Previously hardcoded to a non-existent C:\...\Desktop path; it only
+# worked by accident because the package also resolved via the cwd.)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -318,7 +321,7 @@ _K_panel_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Use hermes Py (or any stable Python). Subprocess creates a fresh
 # interpreter state, so no fig leak from previous panel saves.
 _K_py = r"C:\Users\Qianli\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe"
-_K_result = _sp.run([_K_py, _K_panel_script], capture_output=True, text=True, timeout=60)
+_K_result = _sp.run([_K_py, _K_panel_script, OUT], capture_output=True, text=True, timeout=60)
 if _K_result.returncode != 0:
     print("K FAILED (subprocess):")
     print(_K_result.stdout)

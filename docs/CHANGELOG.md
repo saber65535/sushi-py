@@ -516,6 +516,56 @@ User task (option A): "在师大服务器跑 R vignette 渲染 12 张 R example 
 
 ### Fixed in v0.1.30 (2026-06-15)### Fixed in v0.1.30 (2026-06-15)
 
+### Fixed in v0.1.32 (2026-06-15) — full R 1.32.0 audit pass
+
+Independent end-to-end audit against the R Sushi 1.32.0 real vignette
+renders (`Sushi_R_real_render_png/`). Six real bugs found and fixed; the
+core plot fidelity is now markedly closer to R.
+
+1. **plotBedgraph `colorbycol` gradient was hidden by a blue outline.**
+   The gradient path drew the 100-band rectangles correctly, then drew an
+   extra `ax.plot(outline, color=linecolor)` on top. `linecolor` defaults
+   to `color` (blue), so on dense, sub-pixel-width bedGraph data that solid
+   blue line traced over every bin and dominated the panel — the output
+   looked solid blue instead of the R black→blue→purple→red→orange
+   gradient. R/plotBedgraph.R draws `rect(..., border=bgcol)` and **no**
+   contrasting outline in this path; removed the extra outline to match.
+   Verified: panel base is now black (rgb 0,0,0) like R, was pure blue.
+
+2. **Strand coloring rendered everything blue (ex07/08/09 + docs).** The
+   example data stores `strand` as numeric `-1.0/1.0`, but the vignette
+   used `bed["strand"].map({"+":1,"-":-1})`, which yields **all-NaN** on
+   numeric input. `maptocolors` then returned the first palette color for
+   every element → forward and reverse strands both blue. Switched the
+   examples to `convertstrandinfo`, which handles numeric and "+/-" input.
+   Verified: forward=red / reverse=blue, matching R splitstrand.
+
+3. **plotManhattan crashed on p=0 and on empty regions.** `-log10(0)=+inf`
+   made `set_ylim(0, inf)` raise "Axis limits cannot be NaN or Inf", and an
+   empty post-filter region made `np.nanmax` raise "zero-size array". Added
+   a `_safe_ymax` helper and non-finite masking on `neglog_p`.
+
+4. **maptocolors raised "All-NaN slice" RuntimeWarning and mis-colored
+   NaN.** All-NaN input now short-circuits to the first palette color
+   without calling nanmin/nanmax; stray NaN entries in mixed input map to
+   the first color instead of digitize's top (warm) bin.
+
+5. **plotHic `_np` NameError (latent).** The dict/rectangular-matrix
+   padding branches referenced an undefined `_np`/`pandas` import; changed
+   to the module-level `np`/`pd`. (Only triggered for non-square input.)
+
+6. **Panel K saved to the wrong folder.** `panels/K_panel.py` wrote to
+   `<repo>/../paper_fig_full` (D: drive) while `paper_figure_v015.py` wrote
+   to the Desktop, so the assembled figure was missing Panel K. K_panel.py
+   now takes the output dir as `argv[1]`; the parent passes its `OUT`.
+   Verified: all 14 panels (A–N) now land in the same Desktop folder.
+
+Housekeeping: `__init__.py`/`pyproject.toml` version 0.1.19/0.1.2 → 0.1.32;
+fixed `pyproject` repo URLs (local → saber65535); removed the stale
+hardcoded `C:\...\Desktop\Sushi_Python_Version` sys.path in
+`paper_figure_v015.py`. 15/15 vignette + 14/14 paper panels + 14/14 edge
+cases (empty/zero/NaN/flip+overlay/splitstrand/narrow/wide) all pass.
+
 User task: "读 Sushi.docx, 看 R 脚本 + 例图, 用 Python 跑一样的图"
 
 1. **Drove all 15 Sushi vignette examples via sushi/vignette.py**:

@@ -32,8 +32,14 @@ from sushi import (
     plotBed, labelgenome, zoomsregion, zoombox, SushiColors,
 )
 
-OUT = os.path.join(REPO_DIR, "..", "paper_fig_full")
-OUT = os.path.abspath(OUT)
+# Output directory: the parent script (paper_figure_v015.py) passes its own
+# OUT as argv[1] so Panel K lands in the SAME folder as panels A-N. Previously
+# this defaulted to <repo>/../paper_fig_full (the D: drive) while the parent
+# wrote to the Desktop, so Panel K was missing from the assembled figure.
+if len(sys.argv) > 1 and sys.argv[1].strip():
+    OUT = os.path.abspath(sys.argv[1])
+else:
+    OUT = os.path.abspath(os.path.join(REPO_DIR, "..", "paper_fig_full"))
 os.makedirs(OUT, exist_ok=True)
 
 

@@ -3,6 +3,7 @@
 
 Reproduces ALL 14 panels (A-N) that make up Figure_1.pdf.
 """
+import os
 import sys, os, traceback
 sys.path.insert(0, r"C:\Users\Qianli\Desktop\Sushi_Python_Version")
 import matplotlib
@@ -305,62 +306,26 @@ except Exception as ex:
     print("J FAILED:", ex); traceback.print_exc()
 
 # === Panel K: ChIP-Seq peaks (circles) ===
-try:
-    plt.close("all")  # clear leftover from Panel J
-    # R: plotBed(..., type="circles", color=bed$color, row="given",
-    #             rowlabels=unique(bed$name), rowlabelcol=unique(bed$color),
-    #             rowlabelcex=0.75)
-    # + zoomsregion(region=zoomregion, extend=c(0.5,.22), wideextend=0.15, offsets=c(0.0,0))
-    # + zoombox(zoomregion = zoomregion)
-    # R shows only 5 rows (ZNF274, ZNF143, SP1, REST, RAD21) in zoombox area.
-    # R filters the bed data to only show rows that have peaks in zoomregion.
-    chrom = "chr15"; cs = 72800000; ce = 73100000
-    zoomregion = (72998000, 73020000)
-    mask_k = (sf["chrom"] == chrom) & (sf["start"] < ce) & (sf["end"] > cs)
-    sf_filt = sf[mask_k].reset_index(drop=True)
-    # R zoomsregion filters to rows 7-11 (ZNF274, ZNF143, SP1, REST, RAD21)
-    # because the other 6 rows (CTCF, EP300, etc.) have no peaks in 72.998-73.02 Mb
-    zmin, zmax = 72998000, 73020000
-    sf_filt = sf_filt[(sf_filt["start"] < zmax) & (sf_filt["end"] > zmin)].reset_index(drop=True)
-    if len(sf_filt) > 0:
-        # R uses bed$color = maptocolors(bed$row, SushiColors(6))
-        # Order: sorted rows 1-11, color = SushiColors(6)(11)[i]
-        unique_rows = sorted([int(r) for r in sf_filt["row"].unique()])
-        row_to_color = {r: sushi.SushiColors(6)(len(unique_rows))[i]
-                        for i, r in enumerate(unique_rows)}
-        sf_colors = [row_to_color[int(r)] for r in sf_filt["row"]]
-        # R unique(bed$name) preserves first-appearance order. In the bed file
-        # the order is row 1, 2, 3, ...; the names are unique per row.
-        # Build a {row -> name} mapping from the first row entry.
-        first_per_row = (sf_filt.drop_duplicates("row")
-                                 .set_index("row")["name"].to_dict())
-        row_labels = [first_per_row[r] for r in unique_rows]
-        row_label_colors = [row_to_color[r] for r in unique_rows]
-        plotBed(ax, sf_filt, chrom, cs, ce, type="circles",
-                rownumber=sf_filt["row"].tolist(), row="given",
-                color=sf_colors,
-                rowlabels=row_labels,
-                rowlabelcol=row_label_colors,
-                rowlabelcex=0.75)
-    else:
-        print("K: no data after filter")
-    # R uses n=2 ticks ("72.9" and "73"), not n=3
-    labelgenome(ax, chrom, cs, ce, n=2, scale="Mb")
-    # R zoomsregion(zoomregion, extend=c(0.5,.22), wideextend=0.15, offsets=c(0.0,0))
-    from sushi import zoomsregion, zoombox
-    zoomsregion(ax, region=zoomregion, chrom=chrom,
-                extend=(0.5, 0.22), wideextend=0.15, offsets=(0.0, 0))
-    # R zoombox(zoomregion = zoomregion) draws 3-sided box around zoomregion
-    # (vertical lines at start/end, plus panel border on other sides)
-    zoombox(ax, zoomregion=zoomregion, lwd=0.5, lty="--")
-    # R uses labelplot with letterline=-0.4 titleline=-0.4 (title BELOW axis)
-    # We add the title manually at y=-0.40 (BELOW the axis, R style)
-    ax.text(0.0, -0.40, "K) ChIP-seq", transform=ax.transAxes,
-            fontsize=12, fontweight="bold", va="top", ha="left")
-    save(fig, "K_chipseq_circles")
-    print("K done")
-except Exception as ex:
-    print("K FAILED:", ex); traceback.print_exc()
+# Panel K is run as a SUBPROCESS (panels/K_panel.py) to avoid figure-registry
+# leaks from the previous Panel J fig.savefig. Each panel script creates
+# its own fig, plots, saves, and exits cleanly with no shared fig state.
+# This is the only reliable way to prevent matplotlib ax.text data from
+# leaking across panel saves (plt.close("all") + gc.collect() does NOT
+# fully clear the figure registry when using plt.subplots()).
+import subprocess as _sp
+_K_panel_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "panels", "K_panel.py")
+# Use hermes Py (or any stable Python). Subprocess creates a fresh
+# interpreter state, so no fig leak from previous panel saves.
+_K_py = r"C:\Users\Qianli\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe"
+_K_result = _sp.run([_K_py, _K_panel_script], capture_output=True, text=True, timeout=60)
+if _K_result.returncode != 0:
+    print("K FAILED (subprocess):")
+    print(_K_result.stdout)
+    print(_K_result.stderr)
+else:
+    print(_K_result.stdout.strip() if _K_result.stdout.strip() else "K done")
+
 
 # === Panel L: Pol2 bedgraph ===
 try:

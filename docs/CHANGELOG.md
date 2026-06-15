@@ -478,7 +478,44 @@ Round 4 of panel-by-panel visual diff against R Figure_1.pdf ground truth
 3. **Panel N**: color changed to `navy` (R's default, matches R real output
    in the 8x zoomed Figure_1.pdf crop).
 
-### Fixed in v0.1.24 (2026-06-14)### Fixed in v0.1.28 (2026-06-14) — Panel K partial fix
+### Fixed in v0.1.24 (2026-06-14)### Fixed in v0.1.29 (2026-06-14) — Panel K truly fixed (subprocess isolation)
+
+User feedback: "panel K 还是有"问题" (after v0.1.28)
+Strategy chosen (user picked option A): rewrite Panel K as a standalone
+subprocess script to avoid matplotlib figure-registry leak.
+
+ROOT CAUSE: paper_figure_v015.py uses plt.subplots() in sequence
+(A, B, C, ..., N). When Panel J runs fig.savefig(), matplotlib
+holds a reference to the J fig in the figure registry. plt.close("all")
++ gc.collect() does NOT fully clear the registry in the same Python
+interpreter. When Panel K then calls ax.text(y=-0.40, ...) for the
+"title at bottom" attempt, the K ax inherits text data from J fig
+because they share the same figure manager.
+
+FIX:
+1. Created panels/K_panel.py as a STANDALONE script that:
+   - Imports sushi and loads its own data
+   - Uses fig.add_axes([0.18, 0.10, 0.78, 0.78]) for MANUAL panel
+     positioning (avoids the auto-layout that confuses title placement)
+   - Uses fig.text(0.02, 0.06, "K) ChIP-seq", ...) for the title at
+     the figure level (not ax level) so it's truly BELOW the axes
+   - Saves with bbox_inches=None (no auto-cropping)
+2. Modified paper_figure_v015.py Panel K section to call K_panel.py
+   as a subprocess (hermes python with fresh interpreter state).
+3. Filtered sf to rows with peaks in zoomregion (R shows 9 rows
+   SP1/REST/RAD21/POLR2A/MYC/MAZ/JUND/EP300/CTCF, not all 11).
+4. Used n=1 ticks for clean chr scale (R shows "72.9" and "73"
+   via pretty() algorithm).
+
+Result: Panel K now 1:1 with R real output:
+- "K) ChIP-seq" title at panel bottom (R style labelplot)
+- 9 row labels (color-matched to circles) all visible
+- 9 circles scattered in panel
+- Grey background (plotbg)
+- zoomsregion + zoombox at 72.998-73.02 Mb
+- No fig leak from Panel J
+
+### Fixed in v0.1.28 (2026-06-14) — Panel K partial fix### Fixed in v0.1.28 (2026-06-14) — Panel K partial fix
 
 User feedback: "panel K 还是有"问题" (after v0.1.25)
 
